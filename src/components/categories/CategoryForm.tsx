@@ -7,6 +7,7 @@ import Label from "@/components/form/Label";
 import Input from "@/components/form/input/InputField";
 import TextArea from "@/components/form/input/TextArea";
 import Button from "@/components/ui/button/Button";
+import ImageUpload from "@/components/form/ImageUpload";
 
 interface CategoryFormProps {
   categoryId?: string;
@@ -14,6 +15,7 @@ interface CategoryFormProps {
     name: string;
     description: string | null;
     color: string | null;
+    imageUrl: string | null;
   };
 }
 
@@ -27,6 +29,7 @@ export default function CategoryForm({
     name: initialData?.name || "",
     description: initialData?.description || "",
     color: initialData?.color || "#3B82F6",
+    imageUrl: initialData?.imageUrl || "",
   });
 
   useEffect(() => {
@@ -44,6 +47,7 @@ export default function CategoryForm({
           name: data.name,
           description: data.description || "",
           color: data.color || "#3B82F6",
+          imageUrl: data.imageUrl || "",
         });
       }
     } catch (error) {
@@ -60,6 +64,7 @@ export default function CategoryForm({
         name: formData.name,
         description: formData.description || null,
         color: formData.color || null,
+        imageUrl: formData.imageUrl || null,
       };
 
       const url = categoryId ? `/api/categories/${categoryId}` : "/api/categories";
@@ -118,6 +123,23 @@ export default function CategoryForm({
             disabled={loading}
             rows={3}
           />
+        </div>
+
+        <div>
+          <ImageUpload
+            label="Kategori Avatarı"
+            value={formData.imageUrl}
+            onChange={(url) =>
+              setFormData({ ...formData, imageUrl: url })
+            }
+            bucket="category-avatars"
+            folder="avatars"
+            disabled={loading}
+            maxSizeMB={2}
+          />
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            Kategori için avatar resmi yükleyin (opsiyonel, max 2MB)
+          </p>
         </div>
 
         <div>

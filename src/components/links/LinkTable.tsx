@@ -221,6 +221,7 @@ export default function LinkTable() {
                             color="success"
                             style={{
                               backgroundColor: link.ecommerceBrand.color || undefined,
+                              color: 'white',
                             }}
                           >
                             {link.ecommerceBrand.name}
@@ -237,6 +238,7 @@ export default function LinkTable() {
                           color="success"
                           style={{
                             backgroundColor: link.category.color || undefined,
+                            color: 'white',
                           }}
                         >
                           {link.category.name}

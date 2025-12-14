@@ -56,6 +56,14 @@ const navItems: NavItem[] = [
       { name: "Yeni Marka", path: "/brands/new", pro: false },
     ],
   },
+  {
+    icon: <ListIcon />,
+    name: "Listeler",
+    subItems: [
+      { name: "Tüm Listeler", path: "/lists", pro: false },
+      { name: "Yeni Liste", path: "/lists/new", pro: false },
+    ],
+  },
 ];
 
 const othersItems: NavItem[] = [];

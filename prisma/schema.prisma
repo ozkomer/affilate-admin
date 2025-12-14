@@ -28,10 +28,12 @@ model Category {
   name        String
   description String?
   color       String?  // Hex color code for UI
+  imageUrl    String?  // Category avatar/image URL
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   
   links       AffiliateLink[]
+  lists       CuratedList[]
 }
 
 // E-commerce Brand model (N11, Trendyol, Hepsiburada, Amazon, etc.)
@@ -82,6 +84,7 @@ model AffiliateLink {
   updatedAt   DateTime @updatedAt
   
   clicks      Click[]
+  lists       ListedLink[]
   
   @@index([userId])
   @@index([categoryId])
@@ -112,4 +115,47 @@ model Click {
   
   @@index([linkId])
   @@index([timestamp])
+}
+
+// Curated List model - Kategorilere göre organize edilmiş ürün listeleri
+model CuratedList {
+  id          String   @id @default(cuid())
+  title       String
+  slug        String   @unique
+  description String?
+  coverImage  String?  // Kapak resmi URL
+  youtubeUrl  String?  // YouTube video URL
+  isFeatured  Boolean  @default(false) // Anasayfada gösterilsin mi?
+  
+  // Relations
+  categoryId  String?
+  category    Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  
+  // Many-to-many with AffiliateLink
+  links       ListedLink[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([categoryId])
+  @@index([slug])
+  @@index([isFeatured])
+}
+
+// Junction table for many-to-many relationship between CuratedList and AffiliateLink
+model ListedLink {
+  id            String   @id @default(cuid())
+  listId        String
+  linkId        String
+  order         Int      @default(0) // Sıralama için
+  
+  list          CuratedList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  link          AffiliateLink @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  
+  createdAt     DateTime @default(now())
+  
+  @@unique([listId, linkId])
+  @@index([listId])
+  @@index([linkId])
+  @@index([order])
 }

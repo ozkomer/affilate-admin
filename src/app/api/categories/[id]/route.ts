@@ -63,7 +63,7 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { name, description, color } = body;
+    const { name, description, color, imageUrl } = body;
 
     if (!name) {
       return NextResponse.json(
@@ -80,6 +80,7 @@ export async function PUT(
         name,
         description: description || null,
         color: color || null,
+        imageUrl: imageUrl || null,
       },
     });
 

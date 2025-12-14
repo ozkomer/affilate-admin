@@ -14,59 +14,66 @@ import Link from "next/link";
 import Button from "../ui/button/Button";
 import Image from "next/image";
 
-interface Category {
+interface List {
   id: string;
-  name: string;
+  title: string;
+  slug: string;
   description: string | null;
-  color: string | null;
-  imageUrl: string | null;
+  coverImage: string | null;
+  youtubeUrl: string | null;
+  isFeatured: boolean;
+  categoryId: string | null;
+  category: {
+    id: string;
+    name: string;
+    color: string | null;
+  } | null;
+  linkCount: number;
   createdAt: string;
-  _count?: {
-    links: number;
-  };
+  updatedAt: string;
 }
 
-export default function CategoryTable() {
-  const [categories, setCategories] = useState<Category[]>([]);
+export function ListTable() {
+  const [lists, setLists] = useState<List[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchCategories();
+    fetchLists();
   }, []);
 
-  const fetchCategories = async () => {
+  const fetchLists = async () => {
     try {
-      const response = await fetch("/api/categories");
+      const response = await fetch("/api/lists");
       if (response.ok) {
         const data = await response.json();
-        setCategories(data);
+        setLists(data);
       }
     } catch (error) {
-      console.error("Error fetching categories:", error);
+      console.error("Error fetching lists:", error);
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Bu kategoriyi silmek istediğinize emin misiniz?")) {
+    if (!confirm("Bu listeyi silmek istediğinize emin misiniz?")) {
       return;
     }
 
     try {
-      const response = await fetch(`/api/categories/${id}`, {
+      const response = await fetch(`/api/lists/${id}`, {
         method: "DELETE",
       });
 
       if (response.ok) {
-        fetchCategories();
+        fetchLists();
       } else {
         const error = await response.json();
-        alert(error.error || "Kategori silinirken bir hata oluştu");
+        alert(error.error || "Liste silinirken bir hata oluştu");
       }
     } catch (error) {
-      console.error("Error deleting category:", error);
-      alert("Kategori silinirken bir hata oluştu");
+      console.error("Error deleting list:", error);
+      alert("Liste silinirken bir hata oluştu");
     }
   };
 
@@ -78,14 +85,14 @@ export default function CategoryTable() {
     );
   }
 
-  if (categories.length === 0) {
+  if (lists.length === 0) {
     return (
       <div className="rounded-xl border border-gray-200 bg-white p-8 text-center dark:border-white/[0.05] dark:bg-white/[0.03]">
         <p className="text-gray-500 dark:text-gray-400 mb-4">
-          Henüz kategori eklenmemiş.
+          Henüz liste eklenmemiş.
         </p>
-        <Link href="/categories/new">
-          <Button size="sm">İlk Kategoriyi Oluştur</Button>
+        <Link href="/lists/new">
+          <Button size="sm">İlk Listeyi Oluştur</Button>
         </Link>
       </div>
     );
@@ -102,31 +109,31 @@ export default function CategoryTable() {
                   isHeader
                   className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
                 >
-                  Avatar
+                  Kapak
                 </TableCell>
                 <TableCell
                   isHeader
                   className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
                 >
-                  Kategori Adı
+                  Liste Adı
                 </TableCell>
                 <TableCell
                   isHeader
                   className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
                 >
-                  Açıklama
+                  Kategori
                 </TableCell>
                 <TableCell
                   isHeader
                   className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
                 >
-                  Renk
+                  Ürün Sayısı
                 </TableCell>
                 <TableCell
                   isHeader
                   className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
                 >
-                  Link Sayısı
+                  Öne Çıkan
                 </TableCell>
                 <TableCell
                   isHeader
@@ -138,61 +145,66 @@ export default function CategoryTable() {
             </TableHeader>
 
             <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
-              {categories.map((category) => (
-                <TableRow key={category.id}>
+              {lists.map((list) => (
+                <TableRow key={list.id}>
                   <TableCell className="px-5 py-4 sm:px-6 text-start">
-                    {category.imageUrl ? (
-                      <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+                    {list.coverImage ? (
+                      <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800">
                         <Image
-                          src={category.imageUrl}
-                          alt={category.name}
-                          width={48}
-                          height={48}
+                          src={list.coverImage}
+                          alt={list.title}
+                          width={64}
+                          height={64}
                           className="w-full h-full object-cover"
                         />
                       </div>
                     ) : (
-                      <div
-                        className="w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold text-sm"
-                        style={{
-                          backgroundColor: category.color || "#6366f1",
-                        }}
-                      >
-                        {category.name.charAt(0).toUpperCase()}
+                      <div className="w-16 h-16 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                        <span className="text-gray-400 text-xs">Resim Yok</span>
                       </div>
                     )}
                   </TableCell>
                   <TableCell className="px-5 py-4 sm:px-6 text-start">
-                    <span className="block font-medium text-gray-800 text-theme-sm dark:text-white/90">
-                      {category.name}
-                    </span>
-                  </TableCell>
-                  <TableCell className="px-4 py-3 text-start">
-                    <span className="text-gray-500 text-theme-sm dark:text-gray-400">
-                      {category.description || "-"}
-                    </span>
-                  </TableCell>
-                  <TableCell className="px-4 py-3 text-start">
-                    {category.color ? (
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="w-6 h-6 rounded-full border border-gray-200 dark:border-gray-700"
-                          style={{ backgroundColor: category.color }}
-                        />
-                        <span className="text-gray-500 text-theme-xs dark:text-gray-400">
-                          {category.color}
+                    <div>
+                      <span className="block font-medium text-gray-800 text-theme-sm dark:text-white/90">
+                        {list.title}
+                      </span>
+                      {list.description && (
+                        <span className="text-gray-500 text-theme-xs dark:text-gray-400 line-clamp-1 mt-1">
+                          {list.description}
                         </span>
-                      </div>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="px-4 py-3 text-start">
+                    {list.category ? (
+                      <Badge
+                        style={{
+                          backgroundColor: list.category.color || "#6366f1",
+                        }}
+                        className="text-white"
+                      >
+                        {list.category.name}
+                      </Badge>
                     ) : (
                       <span className="text-gray-400 text-theme-xs">-</span>
                     )}
                   </TableCell>
                   <TableCell className="px-4 py-3 text-gray-500 text-theme-sm dark:text-gray-400">
-                    {category._count?.links || 0}
+                    {list.linkCount}
+                  </TableCell>
+                  <TableCell className="px-4 py-3">
+                    {list.isFeatured ? (
+                      <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                        Evet
+                      </Badge>
+                    ) : (
+                      <span className="text-gray-400 text-theme-xs">Hayır</span>
+                    )}
                   </TableCell>
                   <TableCell className="px-4 py-3">
                     <div className="flex items-center gap-2">
-                      <Link href={`/categories/${category.id}/edit`}>
+                      <Link href={`/lists/${list.id}/edit`}>
                         <button
                           className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
                           title="Düzenle"
@@ -201,7 +213,7 @@ export default function CategoryTable() {
                         </button>
                       </Link>
                       <button
-                        onClick={() => handleDelete(category.id)}
+                        onClick={() => handleDelete(list.id)}
                         className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
                         title="Sil"
                       >
@@ -218,5 +230,4 @@ export default function CategoryTable() {
     </div>
   );
 }
-
 
