@@ -4,9 +4,10 @@ import { createClient as createSupabaseServerClient } from '@/lib/supabase/serve
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const supabase = await createSupabaseServerClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
@@ -18,7 +19,7 @@ export async function GET(
     }
 
     const list = await prisma.curatedList.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         category: true,
         links: {
@@ -56,9 +57,10 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const supabase = await createSupabaseServerClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
@@ -74,7 +76,7 @@ export async function PUT(
 
     // Check if list exists
     const existingList = await prisma.curatedList.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!existingList) {
@@ -97,7 +99,7 @@ export async function PUT(
         where: { slug },
       });
 
-      if (slugExists && slugExists.id !== params.id) {
+      if (slugExists && slugExists.id !== id) {
         return NextResponse.json(
           { error: 'A list with this title already exists' },
           { status: 400 }
@@ -116,7 +118,7 @@ export async function PUT(
     if (isFeatured !== undefined) updateData.isFeatured = isFeatured;
 
     const list = await prisma.curatedList.update({
-      where: { id: params.id },
+      where: { id },
       data: updateData,
     });
 
@@ -124,14 +126,14 @@ export async function PUT(
     if (linkIds && Array.isArray(linkIds)) {
       // Delete existing links
       await prisma.listedLink.deleteMany({
-        where: { listId: params.id },
+        where: { listId: id },
       });
 
       // Create new links
       if (linkIds.length > 0) {
         await prisma.listedLink.createMany({
           data: linkIds.map((linkId: string, index: number) => ({
-            listId: params.id,
+            listId: id,
             linkId,
             order: index,
           })),
@@ -151,9 +153,10 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const supabase = await createSupabaseServerClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
@@ -166,7 +169,7 @@ export async function DELETE(
 
     // Check if list exists
     const list = await prisma.curatedList.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         links: true,
       },
@@ -181,7 +184,7 @@ export async function DELETE(
 
     // Delete the list (cascade will delete ListedLink entries)
     await prisma.curatedList.delete({
-      where: { id: params.id },
+      where: { id },
     });
 
     return NextResponse.json({ message: 'List deleted successfully' });

@@ -7,15 +7,16 @@ export const metadata: Metadata = {
   description: "Liste düzenle",
 };
 
-export default function EditListPage({
+export default async function EditListPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
+  const { id } = await params;
   return (
     <div>
       <PageBreadcrumb pageTitle="Liste Düzenle" />
-      <ListForm listId={params.id} />
+      <ListForm listId={id} />
     </div>
   );
 }

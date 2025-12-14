@@ -66,20 +66,19 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('Upload error:', error);
-      console.error('Error code:', error.statusCode);
       console.error('Error message:', error.message);
       
       // Daha açıklayıcı hata mesajları
-      let errorMessage = error.message;
+      let errorMessage = error.message || 'Bilinmeyen hata';
       let errorDetails = '';
       
-      if (error.message?.includes('new row violates row-level security') || error.statusCode === '403') {
+      if (error.message?.includes('new row violates row-level security') || error.message?.includes('403')) {
         errorMessage = 'Bucket erişim izni yok';
         errorDetails = 'Lütfen Supabase Dashboard\'da Storage > Policies bölümünden bucket için policy oluşturun veya bucket\'ı Public olarak işaretleyin.';
       } else if (error.message?.includes('The resource already exists')) {
         errorMessage = 'Bu dosya zaten mevcut';
         errorDetails = 'Farklı bir dosya seçin veya dosya adını değiştirin.';
-      } else if (error.message?.includes('Bucket not found') || error.statusCode === '404') {
+      } else if (error.message?.includes('Bucket not found') || error.message?.includes('404')) {
         errorMessage = `Bucket bulunamadı: "${bucket}"`;
         errorDetails = `Lütfen Supabase Dashboard'da Storage > Create bucket ile "${bucket}" adında bir bucket oluşturun ve Public olarak işaretleyin.`;
         
@@ -93,7 +92,7 @@ export async function POST(request: NextRequest) {
           // Bucket listesi alınamazsa sessizce devam et
         }
       } else {
-        errorDetails = error.message;
+        errorDetails = error.message || 'Bilinmeyen hata';
       }
       
       return NextResponse.json(
