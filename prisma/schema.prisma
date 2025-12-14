@@ -1,0 +1,115 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  // URL is configured in prisma.config.ts for migrations
+}
+
+// User model - Supabase auth users are stored separately, this is for additional user data if needed
+model User {
+  id        String   @id @default(cuid())
+  supabaseUserId String @unique // Supabase auth user ID
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  links     AffiliateLink[]
+}
+
+// Category model for organizing links
+model Category {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  color       String?  // Hex color code for UI
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  links       AffiliateLink[]
+}
+
+// E-commerce Brand model (N11, Trendyol, Hepsiburada, Amazon, etc.)
+model EcommerceBrand {
+  id          String   @id @default(cuid())
+  name        String   @unique // N11, Trendyol, Hepsiburada, Amazon
+  slug        String   @unique // n11, trendyol, hepsiburada, amazon
+  logo        String?  // Logo URL or path
+  color       String?  // Brand color (hex)
+  website     String?  // Brand website URL
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  links       AffiliateLink[]
+  
+  @@index([slug])
+  @@index([isActive])
+}
+
+// Affiliate Link model
+model AffiliateLink {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  originalUrl String   // Original affiliate URL
+  shortUrl    String   @unique // Shortened URL slug
+  customSlug  String?  @unique // Optional custom slug
+  
+  // Relations
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  categoryId  String?
+  category    Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  ecommerceBrandId String?
+  ecommerceBrand    EcommerceBrand? @relation(fields: [ecommerceBrandId], references: [id], onDelete: SetNull)
+  
+  // Status and tracking
+  isActive    Boolean  @default(true)
+  clickCount  Int      @default(0)
+  
+  // Metadata
+  tags        String[] // Array of tags
+  notes       String?  // Internal notes
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  clicks      Click[]
+  
+  @@index([userId])
+  @@index([categoryId])
+  @@index([ecommerceBrandId])
+  @@index([shortUrl])
+  @@index([isActive])
+}
+
+// Click tracking model
+model Click {
+  id          String   @id @default(cuid())
+  linkId      String
+  link        AffiliateLink @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  
+  // Tracking data
+  ipAddress   String?
+  userAgent   String?
+  referrer    String?
+  country     String?
+  city        String?
+  device      String?  // mobile, desktop, tablet
+  browser     String?
+  
+  // Conversion tracking
+  converted   Boolean  @default(false)
+  
+  timestamp   DateTime @default(now())
+  
+  @@index([linkId])
+  @@index([timestamp])
+}

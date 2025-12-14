@@ -1,0 +1,10 @@
+name = "affilate-admin"
+compatibility_date = "2024-12-14"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = ".next"
+
+[env.production]
+name = "affilate-admin"
+compatibility_flags = ["nodejs_compat"]
+
+
