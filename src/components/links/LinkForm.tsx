@@ -206,6 +206,7 @@ export default function LinkForm({ linkId, initialData }: LinkFormProps) {
   const listOptions = lists.map((list) => ({
     value: list.id,
     text: list.title,
+    selected: formData.listIds.includes(list.id),
   }));
 
   const searchProducts = async () => {
