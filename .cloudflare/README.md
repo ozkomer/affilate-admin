@@ -43,3 +43,4 @@ Build sırasında Prisma client generate edilmesi gerekiyor. `package.json`'da `
 - Prisma client build sırasında generate edilmelidir
 
 
+

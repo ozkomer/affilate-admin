@@ -26,6 +26,9 @@ interface RecentClick {
 export default function RecentOrders() {
   const [recentClicks, setRecentClicks] = useState<RecentClick[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const baseUrl = (typeof window !== 'undefined' 
+    ? (process.env.NEXT_PUBLIC_BASE_URL || 'https://eneso.cc')
+    : 'https://eneso.cc');
 
   useEffect(() => {
     const fetchRecentClicks = async () => {
@@ -194,9 +197,14 @@ export default function RecentOrders() {
                         <p className="font-medium text-gray-800 text-theme-sm dark:text-white/90">
                           {click.linkTitle}
                         </p>
-                        <span className="text-gray-500 text-theme-xs dark:text-gray-400">
-                          /l/{click.shortUrl}
-                        </span>
+                        <a
+                          href={`${baseUrl}/l/${click.shortUrl}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-gray-500 text-theme-xs dark:text-gray-400 hover:text-brand-500 dark:hover:text-brand-400"
+                        >
+                          {baseUrl}/l/{click.shortUrl}
+                        </a>
                       </div>
                     </div>
                   </TableCell>

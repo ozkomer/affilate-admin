@@ -89,28 +89,72 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { title, originalUrl, description, categoryId, ecommerceBrandId, customSlug, tags, isActive } =
+    const { title, originalUrl, description, ecommerceBrandId, customSlug, tags, isActive, imageUrl, youtubeUrl, listIds } =
       body;
+
+    // Build update data object - same format as POST route
+    const updateData: any = {
+      title: title !== undefined ? title : existingLink.title,
+      originalUrl: originalUrl !== undefined ? originalUrl : existingLink.originalUrl,
+      description: description !== undefined ? description : existingLink.description,
+      ecommerceBrandId: ecommerceBrandId !== undefined ? (ecommerceBrandId || null) : existingLink.ecommerceBrandId,
+      customSlug: customSlug !== undefined ? customSlug : existingLink.customSlug,
+      tags: tags !== undefined ? tags : existingLink.tags,
+      isActive: isActive !== undefined ? isActive : existingLink.isActive,
+      imageUrl: imageUrl !== undefined ? imageUrl : existingLink.imageUrl,
+    };
+
+    // Only update youtubeUrl if it's provided
+    if (youtubeUrl !== undefined) {
+      updateData.youtubeUrl = youtubeUrl || null;
+    }
 
     const link = await prisma.affiliateLink.update({
       where: {
         id,
       },
-      data: {
-        title: title || existingLink.title,
-        originalUrl: originalUrl || existingLink.originalUrl,
-        description: description !== undefined ? description : existingLink.description,
-        categoryId: categoryId !== undefined ? categoryId : existingLink.categoryId,
-        ecommerceBrandId: ecommerceBrandId !== undefined ? ecommerceBrandId : existingLink.ecommerceBrandId,
-        customSlug: customSlug !== undefined ? customSlug : existingLink.customSlug,
-        tags: tags || existingLink.tags,
-        isActive: isActive !== undefined ? isActive : existingLink.isActive,
-      },
+      data: updateData,
       include: {
         category: true,
         ecommerceBrand: true,
       },
     });
+
+    // Update list associations
+    if (listIds !== undefined) {
+      // Remove all existing list associations
+      await prisma.listedLink.deleteMany({
+        where: { linkId: id },
+      });
+
+      // Add new list associations
+      if (Array.isArray(listIds) && listIds.length > 0) {
+        // Get max order for each list
+        const listOrders = await Promise.all(
+          listIds.map(async (listId: string) => {
+            const maxOrder = await prisma.listedLink.findFirst({
+              where: { listId },
+              orderBy: { order: 'desc' },
+              select: { order: true },
+            });
+            return {
+              listId,
+              order: maxOrder ? maxOrder.order + 1 : 0,
+            };
+          })
+        );
+
+        // Create ListedLink entries
+        await prisma.listedLink.createMany({
+          data: listOrders.map(({ listId, order }) => ({
+            listId,
+            linkId: id,
+            order,
+          })),
+          skipDuplicates: true,
+        });
+      }
+    }
 
     return NextResponse.json(link);
   } catch (error: any) {

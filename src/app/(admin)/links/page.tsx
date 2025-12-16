@@ -6,7 +6,7 @@ import { PlusIcon } from "@/icons";
 import Button from "@/components/ui/button/Button";
 
 export const metadata: Metadata = {
-  title: "Linklerim | EnesOzen Affilate",
+  title: "Ürünlerim | EnesOzen Affilate",
   description: "Affiliate link yönetim sayfası",
 };
 
@@ -14,7 +14,7 @@ export default async function LinksPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <PageBreadcrumb pageTitle="Linklerim" />
+        <PageBreadcrumb pageTitle="Ürünlerim" />
         <Link href="/links/new">
           <Button size="sm" className="flex items-center gap-2">
             <PlusIcon className="w-4 h-4" />

@@ -2,6 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { createClient as createSupabaseServerClient } from '@/lib/supabase/server';
 
+// Generate short URL slug
+function generateShortUrl(): string {
+  const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  let result = "";
+  for (let i = 0; i < 6; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createSupabaseServerClient();
@@ -50,6 +60,7 @@ export async function GET(request: NextRequest) {
       id: list.id,
       title: list.title,
       slug: list.slug,
+      shortUrl: list.shortUrl,
       description: list.description,
       coverImage: list.coverImage,
       youtubeUrl: list.youtubeUrl,
@@ -115,11 +126,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Generate short URL
+    let shortUrl = generateShortUrl();
+    // Check if short URL already exists (check both AffiliateLink and CuratedList)
+    let shortUrlExists = await prisma.affiliateLink.findUnique({
+      where: { shortUrl },
+    }) || await prisma.curatedList.findUnique({
+      where: { shortUrl },
+    });
+
+    while (shortUrlExists) {
+      shortUrl = generateShortUrl();
+      shortUrlExists = await prisma.affiliateLink.findUnique({
+        where: { shortUrl },
+      }) || await prisma.curatedList.findUnique({
+        where: { shortUrl },
+      });
+    }
+
     // Create the list
     const list = await prisma.curatedList.create({
       data: {
         title,
         slug,
+        shortUrl,
         description,
         coverImage,
         youtubeUrl,

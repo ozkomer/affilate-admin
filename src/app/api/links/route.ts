@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { title, originalUrl, description, categoryId, ecommerceBrandId, customSlug, tags } =
+    const { title, originalUrl, description, categoryId, ecommerceBrandId, customSlug, tags, imageUrl, youtubeUrl, listIds } =
       body;
 
     if (!title || !originalUrl) {
@@ -139,6 +139,8 @@ export async function POST(request: NextRequest) {
         categoryId: categoryId || null,
         ecommerceBrandId: ecommerceBrandId || null,
         tags: tags || [],
+        imageUrl: imageUrl || null,
+        youtubeUrl: youtubeUrl || null,
         isActive: true,
         clickCount: 0,
       },
@@ -147,6 +149,34 @@ export async function POST(request: NextRequest) {
         ecommerceBrand: true,
       },
     });
+
+    // Add link to selected lists
+    if (listIds && Array.isArray(listIds) && listIds.length > 0) {
+      // Get max order for each list
+      const listOrders = await Promise.all(
+        listIds.map(async (listId: string) => {
+          const maxOrder = await prisma.listedLink.findFirst({
+            where: { listId },
+            orderBy: { order: 'desc' },
+            select: { order: true },
+          });
+          return {
+            listId,
+            order: maxOrder ? maxOrder.order + 1 : 0,
+          };
+        })
+      );
+
+      // Create ListedLink entries
+      await prisma.listedLink.createMany({
+        data: listOrders.map(({ listId, order }) => ({
+          listId,
+          linkId: link.id,
+          order,
+        })),
+        skipDuplicates: true,
+      });
+    }
 
     return NextResponse.json(link, { status: 201 });
   } catch (error: any) {

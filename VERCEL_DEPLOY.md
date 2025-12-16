@@ -95,3 +95,4 @@ Eğer build sırasında hata alırsanız:
 - **Environment Variables**: Hassas bilgileri asla commit etmeyin
 - **Supabase Keys**: Service role key'i sadece server-side kullanın
 
+

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { useDropzone } from "react-dropzone";
 import Image from "next/image";
 import Label from "./Label";
@@ -28,6 +28,15 @@ export default function ImageUpload({
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(value || null);
+
+  // value prop'u değiştiğinde preview'ı güncelle
+  useEffect(() => {
+    if (value) {
+      setPreview(value);
+    } else {
+      setPreview(null);
+    }
+  }, [value]);
 
   const onDrop = useCallback(
     async (acceptedFiles: File[]) => {
@@ -117,6 +126,7 @@ export default function ImageUpload({
               alt="Preview"
               fill
               className="object-cover"
+              unoptimized
             />
             {!disabled && (
               <button

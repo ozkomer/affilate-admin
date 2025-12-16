@@ -63,6 +63,8 @@ model AffiliateLink {
   originalUrl String   // Original affiliate URL
   shortUrl    String   @unique // Shortened URL slug
   customSlug  String?  @unique // Optional custom slug
+  imageUrl    String?  // Product image URL
+  youtubeUrl  String?  // YouTube video URL
   
   // Relations
   userId      String
@@ -122,6 +124,7 @@ model CuratedList {
   id          String   @id @default(cuid())
   title       String
   slug        String   @unique
+  shortUrl    String?  @unique // Kısa URL slug'ı (eneso.cc/l/{shortUrl})
   description String?
   coverImage  String?  // Kapak resmi URL
   youtubeUrl  String?  // YouTube video URL
@@ -139,6 +142,7 @@ model CuratedList {
   
   @@index([categoryId])
   @@index([slug])
+  @@index([shortUrl])
   @@index([isFeatured])
 }
 

@@ -2,12 +2,14 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useDropzone } from "react-dropzone";
 import ComponentCard from "@/components/common/ComponentCard";
 import Label from "@/components/form/Label";
 import Input from "@/components/form/input/InputField";
 import TextArea from "@/components/form/input/TextArea";
 import Button from "@/components/ui/button/Button";
 import Switch from "@/components/form/switch/Switch";
+import { validateFileSize, validateImageType } from "@/lib/supabase/storage";
 
 interface BrandFormProps {
   brandId?: string;
@@ -28,6 +30,7 @@ export default function BrandForm({
 }: BrandFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [formData, setFormData] = useState({
     name: initialData?.name || "",
     slug: initialData?.slug || "",
@@ -92,6 +95,84 @@ export default function BrandForm({
         name: value,
       }));
     }
+  };
+
+  // Logo upload handler
+  const handleLogoUpload = async (file: File) => {
+    if (!validateImageType(file)) {
+      alert("Sadece resim dosyaları yüklenebilir (PNG, JPG, WebP, GIF, SVG)");
+      return;
+    }
+
+    if (!validateFileSize(file, 5)) {
+      alert("Dosya boyutu 5MB'dan küçük olmalıdır");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      // Generate unique filename
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${formData.slug || 'brand'}-${Date.now()}.${fileExt}`;
+      const filePath = fileName;
+
+      // Create form data for API
+      const uploadFormData = new FormData();
+      uploadFormData.append('file', file);
+      uploadFormData.append('bucket', 'brand-logos');
+      uploadFormData.append('path', filePath);
+
+      // Upload via API endpoint (bypasses RLS)
+      const response = await fetch('/api/upload/logo', {
+        method: 'POST',
+        body: uploadFormData,
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        alert(`Logo yüklenirken hata oluştu: ${result.error}`);
+        return;
+      }
+
+      if (result.url) {
+        setFormData((prev) => ({
+          ...prev,
+          logo: result.url,
+        }));
+      }
+    } catch (error) {
+      console.error("Error uploading logo:", error);
+      alert("Logo yüklenirken bir hata oluştu");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // Dropzone configuration
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop: (acceptedFiles) => {
+      if (acceptedFiles.length > 0) {
+        handleLogoUpload(acceptedFiles[0]);
+      }
+    },
+    accept: {
+      "image/png": [],
+      "image/jpeg": [],
+      "image/webp": [],
+      "image/gif": [],
+      "image/svg+xml": [],
+    },
+    maxFiles: 1,
+    disabled: uploading || loading,
+  });
+
+  // Remove logo
+  const handleRemoveLogo = () => {
+    setFormData((prev) => ({
+      ...prev,
+      logo: "",
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -172,28 +253,80 @@ export default function BrandForm({
         </div>
 
         <div>
-          <Label>Logo URL</Label>
-          <Input
-            type="url"
-            placeholder="https://example.com/logo.png"
-            value={formData.logo}
-            onChange={(e) =>
-              setFormData({ ...formData, logo: e.target.value })
-            }
-            disabled={loading}
-          />
+          <Label>Logo</Label>
+          
+          {/* Logo Preview */}
           {formData.logo && (
-            <div className="mt-2">
-              <img
-                src={formData.logo}
-                alt="Logo preview"
-                className="w-16 h-16 object-contain border border-gray-200 dark:border-gray-700 rounded"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = "none";
-                }}
-              />
+            <div className="mb-4 flex items-center gap-4">
+              <div className="relative">
+                <img
+                  src={formData.logo}
+                  alt="Logo preview"
+                  className="w-24 h-24 object-contain border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 p-2"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = "none";
+                  }}
+                />
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={handleRemoveLogo}
+                disabled={uploading || loading}
+              >
+                Logoyu Kaldır
+              </Button>
             </div>
           )}
+
+          {/* Upload Area */}
+          <div
+            {...getRootProps()}
+            className={`border-2 border-dashed rounded-lg p-6 cursor-pointer transition-colors ${
+              isDragActive
+                ? "border-brand-500 bg-brand-50 dark:bg-brand-900/20"
+                : "border-gray-300 dark:border-gray-700 hover:border-brand-400 dark:hover:border-brand-600 bg-gray-50 dark:bg-gray-900"
+            } ${uploading || loading ? "opacity-50 cursor-not-allowed" : ""}`}
+          >
+            <input {...getInputProps()} />
+            <div className="flex flex-col items-center justify-center text-center">
+              {uploading ? (
+                <>
+                  <div className="mb-2">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-500"></div>
+                  </div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Logo yükleniyor...
+                  </p>
+                </>
+              ) : (
+                <>
+                  <svg
+                    className="w-12 h-12 text-gray-400 dark:text-gray-500 mb-3"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                    />
+                  </svg>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                    {isDragActive
+                      ? "Dosyayı buraya bırakın"
+                      : "Logo yüklemek için tıklayın veya sürükleyip bırakın"}
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-500">
+                    PNG, JPG, WebP, GIF, SVG (Max 5MB)
+                  </p>
+                </>
+              )}
+            </div>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">

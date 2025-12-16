@@ -34,7 +34,7 @@ const navItems: NavItem[] = [
   },
   {
     icon: <PaperPlaneIcon />,
-    name: "Linklerim",
+    name: "Ürünlerim",
     subItems: [
       { name: "Tüm Linkler", path: "/links", pro: false },
       { name: "Yeni Link", path: "/links/new", pro: false },

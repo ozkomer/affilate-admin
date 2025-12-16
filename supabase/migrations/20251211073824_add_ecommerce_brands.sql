@@ -88,3 +88,4 @@ ALTER TABLE "AffiliateLink" ADD CONSTRAINT "AffiliateLink_ecommerceBrandId_fkey"
 ALTER TABLE "Click" ADD CONSTRAINT "Click_linkId_fkey" FOREIGN KEY ("linkId") REFERENCES "AffiliateLink"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 
+

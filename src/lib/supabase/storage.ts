@@ -90,3 +90,4 @@ export function validateImageType(file: File): boolean {
   return allowedTypes.includes(file.type);
 }
 
+

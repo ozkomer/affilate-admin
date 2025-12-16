@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import ComponentCard from "@/components/common/ComponentCard";
 import Label from "@/components/form/Label";
 import Input from "@/components/form/input/InputField";
@@ -29,12 +30,22 @@ interface Category {
   name: string;
 }
 
+interface EcommerceBrand {
+  id: string;
+  name: string;
+  slug: string;
+  logo: string | null;
+}
+
 interface AffiliateLink {
   id: string;
   title: string;
   shortUrl: string;
+  imageUrl: string | null;
+  categoryId: string | null;
+  ecommerceBrandId: string | null;
   category: { name: string } | null;
-  ecommerceBrand: { name: string } | null;
+  ecommerceBrand: { name: string; logo: string | null } | null;
 }
 
 export default function ListForm({
@@ -44,7 +55,10 @@ export default function ListForm({
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [links, setLinks] = useState<AffiliateLink[]>([]);
+  const [brands, setBrands] = useState<EcommerceBrand[]>([]);
+  const [allLinks, setAllLinks] = useState<AffiliateLink[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedBrandId, setSelectedBrandId] = useState<string>("");
   const [formData, setFormData] = useState({
     title: initialData?.title || "",
     description: initialData?.description || "",
@@ -57,6 +71,7 @@ export default function ListForm({
 
   useEffect(() => {
     fetchCategories();
+    fetchBrands();
     fetchLinks();
     if (listId && !initialData) {
       fetchList();
@@ -75,12 +90,24 @@ export default function ListForm({
     }
   };
 
+  const fetchBrands = async () => {
+    try {
+      const response = await fetch("/api/brands");
+      if (response.ok) {
+        const data = await response.json();
+        setBrands(data);
+      }
+    } catch (error) {
+      console.error("Error fetching brands:", error);
+    }
+  };
+
   const fetchLinks = async () => {
     try {
       const response = await fetch("/api/links");
       if (response.ok) {
         const data = await response.json();
-        setLinks(data);
+        setAllLinks(data);
       }
     } catch (error) {
       console.error("Error fetching links:", error);
@@ -157,6 +184,28 @@ export default function ListForm({
     }));
   };
 
+  // Filtrelenmiş linkler
+  const filteredLinks = allLinks.filter((link) => {
+    // Kategori filtresi
+    if (formData.categoryId && link.categoryId !== formData.categoryId) {
+      return false;
+    }
+    // E-ticaret markası filtresi
+    if (selectedBrandId && link.ecommerceBrandId !== selectedBrandId) {
+      return false;
+    }
+    // Arama filtresi
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      return (
+        link.title.toLowerCase().includes(query) ||
+        link.category?.name.toLowerCase().includes(query) ||
+        link.ecommerceBrand?.name.toLowerCase().includes(query)
+      );
+    }
+    return true;
+  });
+
   return (
     <ComponentCard title={listId ? "Liste Düzenle" : "Yeni Liste Oluştur"}>
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -219,28 +268,42 @@ export default function ListForm({
           />
         </div>
 
-        <div>
-          <Label>Kategori</Label>
-          <Select
-            options={[
-              { value: "", label: "Kategori Seçin" },
-              ...(categories || []).map((category) => ({
-                value: category.id,
-                label: category.name,
-              })),
-            ]}
-            value={formData.categoryId}
-            onChange={(value) =>
-              setFormData({ ...formData, categoryId: value })
-            }
-            placeholder="Kategori Seçin"
-            className={loading ? "opacity-50 cursor-not-allowed" : ""}
-          />
-          {loading && (
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              Yükleniyor...
-            </p>
-          )}
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+          <div>
+            <Label>E-ticaret Markası</Label>
+            <Select
+              options={[
+                { value: "", label: "Tüm Markalar" },
+                ...(brands || []).map((brand) => ({
+                  value: brand.id,
+                  label: brand.name,
+                })),
+              ]}
+              value={selectedBrandId}
+              onChange={(value) => setSelectedBrandId(value)}
+              placeholder="Marka Seçin"
+              className={loading ? "opacity-50 cursor-not-allowed" : ""}
+            />
+          </div>
+
+          <div>
+            <Label>Kategori</Label>
+            <Select
+              options={[
+                { value: "", label: "Tüm Kategoriler" },
+                ...(categories || []).map((category) => ({
+                  value: category.id,
+                  label: category.name,
+                })),
+              ]}
+              value={formData.categoryId}
+              onChange={(value) =>
+                setFormData({ ...formData, categoryId: value, linkIds: [] })
+              }
+              placeholder="Kategori Seçin"
+              className={loading ? "opacity-50 cursor-not-allowed" : ""}
+            />
+          </div>
         </div>
 
         <div>
@@ -266,14 +329,43 @@ export default function ListForm({
 
         <div>
           <Label>Ürünler (Linkler)</Label>
+          
+          {/* Arama ve Filtre Bilgisi */}
+          {(selectedBrandId || formData.categoryId) && (
+            <div className="mt-2 mb-3">
+              <Input
+                type="text"
+                placeholder="Ürün ara..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                disabled={loading}
+                className="w-full"
+              />
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                {selectedBrandId && formData.categoryId
+                  ? `${brands.find((b) => b.id === selectedBrandId)?.name} ve seçili kategoriye göre filtreleniyor`
+                  : selectedBrandId
+                  ? `${brands.find((b) => b.id === selectedBrandId)?.name} markasına göre filtreleniyor`
+                  : "Seçili kategoriye göre filtreleniyor"}
+                {filteredLinks.length > 0 && ` • ${filteredLinks.length} ürün bulundu`}
+              </p>
+            </div>
+          )}
+
           <div className="mt-2 border border-gray-200 dark:border-gray-700 rounded-lg p-4 max-h-96 overflow-y-auto">
-            {links.length === 0 ? (
+            {allLinks.length === 0 ? (
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 Henüz link eklenmemiş. Önce link oluşturun.
               </p>
+            ) : filteredLinks.length === 0 ? (
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                {selectedBrandId || formData.categoryId
+                  ? "Seçilen kriterlere uygun ürün bulunamadı."
+                  : "Ürün bulunamadı."}
+              </p>
             ) : (
               <div className="space-y-2">
-                {links.map((link) => (
+                {filteredLinks.map((link) => (
                   <label
                     key={link.id}
                     className="flex items-center gap-3 p-2 rounded hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
@@ -285,6 +377,29 @@ export default function ListForm({
                       disabled={loading}
                       className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
                     />
+                    {link.imageUrl || link.ecommerceBrand?.logo ? (
+                      <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center flex-shrink-0">
+                        {link.imageUrl ? (
+                          <Image
+                            src={link.imageUrl}
+                            alt={link.title}
+                            width={48}
+                            height={48}
+                            className="w-full h-full object-cover"
+                            unoptimized
+                          />
+                        ) : link.ecommerceBrand?.logo ? (
+                          <Image
+                            src={link.ecommerceBrand.logo}
+                            alt={link.ecommerceBrand.name}
+                            width={48}
+                            height={48}
+                            className="w-full h-full object-contain"
+                            unoptimized
+                          />
+                        ) : null}
+                      </div>
+                    ) : null}
                     <div className="flex-1">
                       <div className="font-medium text-sm text-gray-900 dark:text-white">
                         {link.title}

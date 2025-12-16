@@ -9,7 +9,7 @@ import {
   TableRow,
 } from "../ui/table";
 import Badge from "../ui/badge/Badge";
-import { PencilIcon, TrashBinIcon } from "@/icons";
+import { PencilIcon, TrashBinIcon, CopyIcon } from "@/icons";
 import Link from "next/link";
 import Button from "../ui/button/Button";
 import Image from "next/image";
@@ -18,6 +18,7 @@ interface List {
   id: string;
   title: string;
   slug: string;
+  shortUrl: string | null;
   description: string | null;
   coverImage: string | null;
   youtubeUrl: string | null;
@@ -77,6 +78,11 @@ export function ListTable() {
     }
   };
 
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    // TODO: Add toast notification
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -121,6 +127,12 @@ export function ListTable() {
                   isHeader
                   className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
                 >
+                  Kısa URL
+                </TableCell>
+                <TableCell
+                  isHeader
+                  className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
+                >
                   Kategori
                 </TableCell>
                 <TableCell
@@ -145,22 +157,43 @@ export function ListTable() {
             </TableHeader>
 
             <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
-              {lists.map((list) => (
+              {lists.map((list) => {
+                const baseUrl = (typeof window !== 'undefined' 
+                  ? (process.env.NEXT_PUBLIC_BASE_URL || 'https://eneso.cc')
+                  : 'https://eneso.cc');
+                const shortUrlFull = list.shortUrl ? `${baseUrl}/l/${list.shortUrl}` : '';
+                return (
                 <TableRow key={list.id}>
                   <TableCell className="px-5 py-4 sm:px-6 text-start">
                     {list.coverImage ? (
-                      <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800">
-                        <Image
-                          src={list.coverImage}
-                          alt={list.title}
-                          width={64}
-                          height={64}
-                          className="w-full h-full object-cover"
-                        />
+                      <div className="relative group">
+                        <div className="w-20 h-20 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+                          <Image
+                            src={list.coverImage}
+                            alt={list.title}
+                            width={80}
+                            height={80}
+                            className="w-full h-full object-cover"
+                            unoptimized
+                          />
+                        </div>
+                        {/* Hover preview */}
+                        <div className="absolute left-0 top-full mt-2 z-50 hidden group-hover:block pointer-events-none">
+                          <div className="w-64 h-64 rounded-lg overflow-hidden bg-white dark:bg-gray-800 shadow-xl border border-gray-200 dark:border-gray-700">
+                            <Image
+                              src={list.coverImage}
+                              alt={list.title}
+                              width={256}
+                              height={256}
+                              className="w-full h-full object-cover"
+                              unoptimized
+                            />
+                          </div>
+                        </div>
                       </div>
                     ) : (
-                      <div className="w-16 h-16 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
-                        <span className="text-gray-400 text-xs">Resim Yok</span>
+                      <div className="w-20 h-20 rounded-lg bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center">
+                        <span className="text-gray-400 text-xs text-center px-2">Resim Yok</span>
                       </div>
                     )}
                   </TableCell>
@@ -175,6 +208,29 @@ export function ListTable() {
                         </span>
                       )}
                     </div>
+                  </TableCell>
+                  <TableCell className="px-4 py-3 text-start">
+                    {list.shortUrl ? (
+                      <div className="flex items-center gap-2">
+                        <a
+                          href={shortUrlFull}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-brand-500 hover:text-brand-600 text-theme-sm dark:text-brand-400"
+                        >
+                          /l/{list.shortUrl}
+                        </a>
+                        <button
+                          onClick={() => copyToClipboard(shortUrlFull)}
+                          className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
+                          title="Kopyala"
+                        >
+                          <CopyIcon className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-gray-400 text-theme-xs">-</span>
+                    )}
                   </TableCell>
                   <TableCell className="px-4 py-3 text-start">
                     {list.category ? (
@@ -222,7 +278,8 @@ export function ListTable() {
                     </div>
                   </TableCell>
                 </TableRow>
-              ))}
+              );
+              })}
             </TableBody>
           </Table>
         </div>

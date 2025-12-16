@@ -41,3 +41,4 @@ git push -u origin main
 - Manuel `.next` klasörü deploy'u genellikle çalışmaz
 - Environment variables mutlaka eklenmelidir
 
+

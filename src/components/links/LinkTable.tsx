@@ -162,7 +162,10 @@ export default function LinkTable() {
 
             <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
               {links.map((link) => {
-                const shortUrlFull = typeof window !== 'undefined' ? `${window.location.origin}/l/${link.shortUrl}` : `/l/${link.shortUrl}`;
+                const baseUrl = (typeof window !== 'undefined' 
+                  ? (process.env.NEXT_PUBLIC_BASE_URL || 'https://eneso.cc')
+                  : 'https://eneso.cc');
+                const shortUrlFull = `${baseUrl}/l/${link.shortUrl}`;
                 return (
                   <TableRow key={link.id}>
                     <TableCell className="px-5 py-4 sm:px-6 text-start">
