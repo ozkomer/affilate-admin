@@ -49,7 +49,8 @@ model EcommerceBrand {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   
-  links       AffiliateLink[]
+  links       AffiliateLink[] // Deprecated: Use ProductUrl instead
+  productUrls ProductUrl[]    // Multiple URLs for products
   
   @@index([slug])
   @@index([isActive])
@@ -60,7 +61,7 @@ model AffiliateLink {
   id          String   @id @default(cuid())
   title       String
   description String?
-  originalUrl String   // Original affiliate URL
+  originalUrl String?  // Deprecated: Use ProductUrl instead. Kept for backward compatibility
   shortUrl    String   @unique // Shortened URL slug
   customSlug  String?  @unique // Optional custom slug
   imageUrl    String?  // Product image URL
@@ -71,7 +72,7 @@ model AffiliateLink {
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   categoryId  String?
   category    Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  ecommerceBrandId String?
+  ecommerceBrandId String? // Deprecated: Use ProductUrl instead. Kept for backward compatibility
   ecommerceBrand    EcommerceBrand? @relation(fields: [ecommerceBrandId], references: [id], onDelete: SetNull)
   
   // Status and tracking
@@ -87,6 +88,7 @@ model AffiliateLink {
   
   clicks      Click[]
   lists       ListedLink[]
+  productUrls ProductUrl[] // Multiple e-commerce URLs for this product
   
   @@index([userId])
   @@index([categoryId])
@@ -95,11 +97,35 @@ model AffiliateLink {
   @@index([isActive])
 }
 
+// Product URL model - Multiple e-commerce URLs for a single product
+model ProductUrl {
+  id              String   @id @default(cuid())
+  linkId          String
+  link            AffiliateLink @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  ecommerceBrandId String
+  ecommerceBrand  EcommerceBrand @relation(fields: [ecommerceBrandId], references: [id], onDelete: Cascade)
+  url             String   // Affiliate URL for this brand
+  isPrimary       Boolean  @default(false) // Primary/default URL
+  order           Int      @default(0) // Display order
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  clicks          Click[]
+  
+  @@index([linkId])
+  @@index([ecommerceBrandId])
+  @@index([isPrimary])
+  @@unique([linkId, ecommerceBrandId]) // One URL per brand per product
+}
+
 // Click tracking model
 model Click {
   id          String   @id @default(cuid())
   linkId      String
   link        AffiliateLink @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  productUrlId String? // Which specific URL was clicked
+  productUrl  ProductUrl? @relation(fields: [productUrlId], references: [id], onDelete: SetNull)
   
   // Tracking data
   ipAddress   String?
@@ -116,6 +142,7 @@ model Click {
   timestamp   DateTime @default(now())
   
   @@index([linkId])
+  @@index([productUrlId])
   @@index([timestamp])
 }
 

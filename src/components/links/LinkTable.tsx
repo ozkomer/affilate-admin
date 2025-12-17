@@ -16,11 +16,25 @@ import Select from "../form/Select";
 import Label from "../form/Label";
 import Pagination from "../tables/Pagination";
 
+interface ProductUrl {
+  id: string;
+  url: string;
+  isPrimary: boolean;
+  order: number;
+  ecommerceBrand: {
+    id: string;
+    name: string;
+    slug: string;
+    logo: string | null;
+    color: string | null;
+  };
+}
+
 interface AffiliateLink {
   id: string;
   title: string;
   description: string | null;
-  originalUrl: string;
+  originalUrl: string | null; // Made nullable
   shortUrl: string;
   isActive: boolean;
   clickCount: number;
@@ -29,13 +43,14 @@ interface AffiliateLink {
     name: string;
     color: string | null;
   } | null;
-  ecommerceBrand: {
+  ecommerceBrand: { // Kept for backward compatibility
     id: string;
     name: string;
     slug: string;
     color: string | null;
     logo: string | null;
   } | null;
+  productUrls?: ProductUrl[]; // Added
   createdAt: string;
 }
 
@@ -122,7 +137,8 @@ export default function LinkTable({ showFilters = false, onToggleFilters }: Link
         const matchesSearch =
           link.title.toLowerCase().includes(query) ||
           (link.description && link.description.toLowerCase().includes(query)) ||
-          link.originalUrl.toLowerCase().includes(query) ||
+          (link.originalUrl && link.originalUrl.toLowerCase().includes(query)) ||
+          (link.productUrls && link.productUrls.some(pu => pu.url.toLowerCase().includes(query))) ||
           link.shortUrl.toLowerCase().includes(query);
         if (!matchesSearch) return false;
       }
@@ -388,14 +404,33 @@ export default function LinkTable({ showFilters = false, onToggleFilters }: Link
                         </div>
                       </TableCell>
                       <TableCell className="px-4 py-3 text-start">
-                        <a
-                          href={link.originalUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-brand-500 hover:text-brand-600 text-theme-sm dark:text-brand-400 truncate max-w-xs block"
-                        >
-                          {link.originalUrl}
-                        </a>
+                        {link.productUrls && link.productUrls.length > 0 ? (
+                          <div className="flex flex-col gap-1">
+                            {link.productUrls.map((pu) => (
+                              <a
+                                key={pu.id}
+                                href={pu.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-brand-500 hover:text-brand-600 text-theme-xs dark:text-brand-400 break-all block"
+                                title={pu.url}
+                              >
+                                {pu.ecommerceBrand.name}: {pu.url}
+                              </a>
+                            ))}
+                          </div>
+                        ) : link.originalUrl ? (
+                          <a
+                            href={link.originalUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-brand-500 hover:text-brand-600 text-theme-sm dark:text-brand-400 break-all block"
+                          >
+                            {link.originalUrl}
+                          </a>
+                        ) : (
+                          <span className="text-gray-400 text-theme-xs">-</span>
+                        )}
                       </TableCell>
                       <TableCell className="px-4 py-3 text-start">
                         <div className="flex items-center gap-2">
@@ -417,7 +452,33 @@ export default function LinkTable({ showFilters = false, onToggleFilters }: Link
                         </div>
                       </TableCell>
                       <TableCell className="px-4 py-3 text-start">
-                        {link.ecommerceBrand ? (
+                        {link.productUrls && link.productUrls.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {link.productUrls.map((pu) => (
+                              <div key={pu.id} className="flex items-center gap-1">
+                                {pu.ecommerceBrand.logo && (
+                                  <img
+                                    src={pu.ecommerceBrand.logo}
+                                    alt={pu.ecommerceBrand.name}
+                                    className="w-4 h-4 object-contain"
+                                  />
+                                )}
+                                <Badge
+                                  size="sm"
+                                  color="success"
+                                  style={{
+                                    backgroundColor: pu.ecommerceBrand.color || undefined,
+                                    color: 'white',
+                                  }}
+                                  title={pu.isPrimary ? "Varsayılan" : ""}
+                                >
+                                  {pu.ecommerceBrand.name}
+                                  {pu.isPrimary && " *"}
+                                </Badge>
+                              </div>
+                            ))}
+                          </div>
+                        ) : link.ecommerceBrand ? (
                           <div className="flex items-center gap-2">
                             {link.ecommerceBrand.logo && (
                               <img

@@ -35,6 +35,15 @@ export async function GET(
       include: {
         category: true,
         ecommerceBrand: true,
+        productUrls: {
+          include: {
+            ecommerceBrand: true,
+          },
+          orderBy: [
+            { isPrimary: 'desc' },
+            { order: 'asc' },
+          ],
+        },
       },
     });
 
@@ -89,15 +98,13 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { title, originalUrl, description, ecommerceBrandId, customSlug, tags, isActive, imageUrl, youtubeUrl, listIds } =
+    const { title, description, customSlug, tags, isActive, imageUrl, youtubeUrl, listIds, productUrls } =
       body;
 
-    // Build update data object - same format as POST route
+    // Build update data object
     const updateData: any = {
       title: title !== undefined ? title : existingLink.title,
-      originalUrl: originalUrl !== undefined ? originalUrl : existingLink.originalUrl,
       description: description !== undefined ? description : existingLink.description,
-      ecommerceBrandId: ecommerceBrandId !== undefined ? (ecommerceBrandId || null) : existingLink.ecommerceBrandId,
       customSlug: customSlug !== undefined ? customSlug : existingLink.customSlug,
       tags: tags !== undefined ? tags : existingLink.tags,
       isActive: isActive !== undefined ? isActive : existingLink.isActive,
@@ -109,6 +116,54 @@ export async function PUT(
       updateData.youtubeUrl = youtubeUrl || null;
     }
 
+    // Validate and prepare productUrls if provided
+    let validProductUrls: any[] = [];
+    if (productUrls !== undefined && Array.isArray(productUrls)) {
+      console.log("Received productUrls:", JSON.stringify(productUrls, null, 2));
+      
+      if (productUrls.length === 0) {
+        return NextResponse.json(
+          { error: "At least one product URL is required" },
+          { status: 400 }
+        );
+      }
+
+      // Filter out empty entries and validate productUrls
+      validProductUrls = productUrls.filter((pu: any) => {
+        return pu && pu.ecommerceBrandId && pu.ecommerceBrandId.trim() !== '' && pu.url && pu.url.trim() !== '';
+      });
+
+      if (validProductUrls.length === 0) {
+        return NextResponse.json(
+          { error: "At least one valid product URL is required (with brand and URL)" },
+          { status: 400 }
+        );
+      }
+
+      console.log("Valid productUrls:", JSON.stringify(validProductUrls, null, 2));
+
+      // Delete existing productUrls
+      try {
+        await prisma.productUrl.deleteMany({
+          where: { linkId: id },
+        });
+      } catch (deleteError: any) {
+        console.error("Error deleting productUrls:", deleteError);
+        // Continue anyway - we'll create new ones
+      }
+
+      // Get primary URL for backward compatibility
+      const primaryUrl = validProductUrls.find((pu: any) => pu.isPrimary) || validProductUrls[0];
+      updateData.originalUrl = primaryUrl.url;
+      // Use relation connect instead of direct ecommerceBrandId
+      if (primaryUrl.ecommerceBrandId) {
+        updateData.ecommerceBrand = {
+          connect: { id: primaryUrl.ecommerceBrandId },
+        };
+      }
+    }
+
+    // Update the link first (without productUrls)
     const link = await prisma.affiliateLink.update({
       where: {
         id,
@@ -117,6 +172,43 @@ export async function PUT(
       include: {
         category: true,
         ecommerceBrand: true,
+      },
+    });
+
+    // Now create productUrls separately if they were provided
+    if (productUrls !== undefined && Array.isArray(productUrls) && validProductUrls.length > 0) {
+      try {
+        await prisma.productUrl.createMany({
+          data: validProductUrls.map((pu: any, index: number) => ({
+            linkId: id,
+            ecommerceBrandId: pu.ecommerceBrandId,
+            url: pu.url.trim(),
+            isPrimary: pu.isPrimary === true || (index === 0 && !validProductUrls.some((p: any) => p.isPrimary === true)),
+            order: pu.order !== undefined ? pu.order : index,
+          })),
+          skipDuplicates: true,
+        });
+      } catch (createError: any) {
+        console.error("Error creating productUrls:", createError);
+        // Continue - at least the link was updated
+      }
+    }
+
+    // Fetch the updated link with productUrls
+    const updatedLink = await prisma.affiliateLink.findUnique({
+      where: { id },
+      include: {
+        category: true,
+        ecommerceBrand: true,
+        productUrls: {
+          include: {
+            ecommerceBrand: true,
+          },
+          orderBy: [
+            { isPrimary: 'desc' },
+            { order: 'asc' },
+          ],
+        },
       },
     });
 
@@ -156,7 +248,7 @@ export async function PUT(
       }
     }
 
-    return NextResponse.json(link);
+    return NextResponse.json(updatedLink || link);
   } catch (error: any) {
     console.error("Error updating link:", error);
     return NextResponse.json(

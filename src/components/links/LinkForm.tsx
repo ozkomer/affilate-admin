@@ -26,18 +26,28 @@ interface EcommerceBrand {
   logo: string | null;
 }
 
+interface ProductUrl {
+  id?: string;
+  ecommerceBrandId: string;
+  url: string;
+  isPrimary: boolean;
+  order: number;
+}
+
 interface LinkFormProps {
   linkId?: string;
   initialData?: {
     title: string;
-    originalUrl: string;
+    originalUrl?: string;
     description: string | null;
     categoryId: string | null;
-    ecommerceBrandId: string | null;
+    ecommerceBrandId?: string | null;
     customSlug: string | null;
     tags: string[];
     isActive: boolean;
     imageUrl: string | null;
+    youtubeUrl?: string | null;
+    productUrls?: ProductUrl[];
   };
 }
 
@@ -51,15 +61,26 @@ export default function LinkForm({ linkId, initialData }: LinkFormProps) {
   const [searching, setSearching] = useState(false);
   const [formData, setFormData] = useState({
     title: initialData?.title || "",
-    originalUrl: initialData?.originalUrl || "",
     description: initialData?.description || "",
-    ecommerceBrandId: initialData?.ecommerceBrandId || "",
     customSlug: initialData?.customSlug || "",
     tags: initialData?.tags?.join(", ") || "",
     isActive: initialData?.isActive !== undefined ? initialData.isActive : true,
     imageUrl: initialData?.imageUrl || "",
-    youtubeUrl: "",
+    youtubeUrl: initialData?.youtubeUrl || "",
     listIds: [] as string[],
+    productUrls: (initialData?.productUrls && initialData.productUrls.length > 0 
+      ? initialData.productUrls.map(pu => ({
+          id: pu.id,
+          ecommerceBrandId: pu.ecommerceBrandId,
+          url: pu.url,
+          isPrimary: pu.isPrimary,
+          order: pu.order,
+        }))
+      : (initialData?.originalUrl && initialData?.ecommerceBrandId
+          ? [{ id: `old-${Date.now()}`, ecommerceBrandId: initialData.ecommerceBrandId, url: initialData.originalUrl, isPrimary: true, order: 0 }]
+          : [{ ecommerceBrandId: "", url: "", isPrimary: true, order: 0 }]
+        )
+    ) as ProductUrl[],
   });
 
   useEffect(() => {
@@ -70,11 +91,11 @@ export default function LinkForm({ linkId, initialData }: LinkFormProps) {
     }
   }, [linkId]);
 
-  // Marka değiştiğinde arama sonuçlarını temizle
-  useEffect(() => {
-    setSearchResults([]);
-    setSearchQuery("");
-  }, [formData.ecommerceBrandId]);
+  // Marka değiştiğinde arama sonuçlarını temizle - Artık kullanılmıyor
+  // useEffect(() => {
+  //   setSearchResults([]);
+  //   setSearchQuery("");
+  // }, [formData.ecommerceBrandId]);
 
   const fetchLists = async () => {
     try {
@@ -107,40 +128,55 @@ export default function LinkForm({ linkId, initialData }: LinkFormProps) {
         const data = await response.json();
         // Get lists that contain this link
         const listsResponse = await fetch("/api/lists");
+        let linkLists: string[] = [];
         if (listsResponse.ok) {
           const allLists = await listsResponse.json();
-          const linkLists = allLists
+          linkLists = allLists
             .filter((list: any) => 
               list.links?.some((linkItem: any) => linkItem.linkId === linkId)
             )
             .map((list: any) => list.id);
-          
-          setFormData({
-            title: data.title,
-            originalUrl: data.originalUrl,
-            description: data.description || "",
-            ecommerceBrandId: data.ecommerceBrandId || "",
-            customSlug: data.customSlug || "",
-            tags: data.tags?.join(", ") || "",
-            isActive: data.isActive,
-            imageUrl: data.imageUrl || "",
-            youtubeUrl: data.youtubeUrl || "",
-            listIds: linkLists,
-          });
-        } else {
-          setFormData({
-            title: data.title,
-            originalUrl: data.originalUrl,
-            description: data.description || "",
-            ecommerceBrandId: data.ecommerceBrandId || "",
-            customSlug: data.customSlug || "",
-            tags: data.tags?.join(", ") || "",
-            isActive: data.isActive,
-            imageUrl: data.imageUrl || "",
-            youtubeUrl: data.youtubeUrl || "",
-            listIds: [],
-          });
         }
+        
+        // Handle productUrls
+        let productUrlsData: ProductUrl[] = [];
+        if (data.productUrls && data.productUrls.length > 0) {
+          productUrlsData = data.productUrls.map((pu: any) => ({
+            id: pu.id,
+            ecommerceBrandId: pu.ecommerceBrandId,
+            url: pu.url,
+            isPrimary: pu.isPrimary || false,
+            order: pu.order || 0,
+          }));
+        } else if (data.originalUrl && data.ecommerceBrandId) {
+          // Fallback for old structure
+          productUrlsData = [{
+            id: `old-${Date.now()}`,
+            ecommerceBrandId: data.ecommerceBrandId,
+            url: data.originalUrl,
+            isPrimary: true,
+            order: 0,
+          }];
+        } else {
+          productUrlsData = [{
+            ecommerceBrandId: "",
+            url: "",
+            isPrimary: true,
+            order: 0,
+          }];
+        }
+        
+        setFormData({
+          title: data.title,
+          description: data.description || "",
+          customSlug: data.customSlug || "",
+          tags: data.tags?.join(", ") || "",
+          isActive: data.isActive,
+          imageUrl: data.imageUrl || "",
+          youtubeUrl: data.youtubeUrl || "",
+          listIds: linkLists,
+          productUrls: productUrlsData,
+        });
       }
     } catch (error) {
       console.error("Error fetching link:", error);
@@ -157,17 +193,32 @@ export default function LinkForm({ linkId, initialData }: LinkFormProps) {
         .map((tag) => tag.trim())
         .filter((tag) => tag.length > 0);
 
+      // Validate productUrls
+      const validProductUrls = formData.productUrls.filter(pu => 
+        pu.ecommerceBrandId && pu.ecommerceBrandId.trim() !== '' && pu.url && pu.url.trim() !== ''
+      );
+      
+      if (validProductUrls.length === 0) {
+        alert("En az bir geçerli e-ticaret linki eklemelisiniz (marka ve URL ile)");
+        setLoading(false);
+        return;
+      }
+
       const payload: any = {
         title: formData.title,
-        originalUrl: formData.originalUrl,
         description: formData.description || null,
-        ecommerceBrandId: formData.ecommerceBrandId || null,
         customSlug: formData.customSlug || null,
         tags: tagsArray,
         isActive: formData.isActive,
         imageUrl: formData.imageUrl || null,
         youtubeUrl: formData.youtubeUrl || null,
         listIds: formData.listIds,
+        productUrls: validProductUrls.map(pu => ({
+          ecommerceBrandId: pu.ecommerceBrandId,
+          url: pu.url,
+          isPrimary: pu.isPrimary,
+          order: pu.order,
+        })),
       };
       
       // Don't send categoryId since it's removed from the form
@@ -209,55 +260,7 @@ export default function LinkForm({ linkId, initialData }: LinkFormProps) {
     selected: formData.listIds.includes(list.id),
   }));
 
-  const searchProducts = async () => {
-    if (!formData.ecommerceBrandId || !searchQuery.trim()) {
-      return;
-    }
-
-    setSearching(true);
-    try {
-      // E-ticaret markasına göre arama yap
-      const brand = brands.find((b) => b.id === formData.ecommerceBrandId);
-      if (!brand) {
-        setSearching(false);
-        return;
-      }
-
-      // Burada e-ticaret API'lerine istek atılabilir
-      // Şimdilik basit bir örnek gösteriyoruz
-      // Gerçek implementasyon için e-ticaret API'lerine entegre edilmeli
-      
-      // Örnek: Trendyol API, N11 API, Hepsiburada API, Amazon API
-      // Bu API'ler genellikle API key gerektirir
-      
-      // Şimdilik kullanıcıya manuel URL girmesi için yardımcı oluyoruz
-      alert(`${brand.name} için "${searchQuery}" araması yapılacak. Bu özellik e-ticaret API entegrasyonu gerektirir.`);
-      
-      // TODO: E-ticaret API entegrasyonu
-      // const response = await fetch(`/api/search-products?brand=${brand.slug}&category=${formData.categoryId}&q=${encodeURIComponent(searchQuery)}`);
-      // if (response.ok) {
-      //   const data = await response.json();
-      //   setSearchResults(data);
-      // }
-    } catch (error) {
-      console.error("Error searching products:", error);
-      alert("Ürün arama sırasında bir hata oluştu");
-    } finally {
-      setSearching(false);
-    }
-  };
-
-  const handleProductSelect = (product: any) => {
-    setFormData({
-      ...formData,
-      title: product.title || formData.title,
-      originalUrl: product.url || formData.originalUrl,
-      description: product.description || formData.description,
-      imageUrl: product.imageUrl || formData.imageUrl,
-    });
-    setSearchResults([]);
-    setSearchQuery("");
-  };
+  // Ürün arama fonksiyonları kaldırıldı - artık çoklu link desteği var
 
   return (
     <ComponentCard title={linkId ? "Link Düzenle" : "Yeni Link Oluştur"}>
@@ -272,22 +275,6 @@ export default function LinkForm({ linkId, initialData }: LinkFormProps) {
             value={formData.title}
             onChange={(e) =>
               setFormData({ ...formData, title: e.target.value })
-            }
-            required
-            disabled={loading}
-          />
-        </div>
-
-        <div>
-          <Label>
-            Orijinal URL <span className="text-error-500">*</span>
-          </Label>
-          <Input
-            type="url"
-            placeholder="https://example.com/affiliate-link"
-            value={formData.originalUrl}
-            onChange={(e) =>
-              setFormData({ ...formData, originalUrl: e.target.value })
             }
             required
             disabled={loading}
@@ -324,24 +311,127 @@ export default function LinkForm({ linkId, initialData }: LinkFormProps) {
         </div>
 
         <div>
-          <Label>E-ticaret Markası</Label>
-          <div className="relative">
-            <Select
-              options={[
-                { value: "", label: "Marka seçin" },
-                ...brandOptions,
-              ]}
-              placeholder="Marka seçin"
-              onChange={(value) =>
-                setFormData({ ...formData, ecommerceBrandId: value })
-              }
-              className="dark:bg-dark-900"
-              value={formData.ecommerceBrandId}
-            />
-            <span className="absolute text-gray-500 -translate-y-1/2 pointer-events-none right-3 top-1/2 dark:text-gray-400">
-              <ChevronDownIcon />
-            </span>
+          <Label>
+            E-ticaret Linkleri <span className="text-error-500">*</span>
+          </Label>
+          <div className="space-y-3">
+            {formData.productUrls.map((productUrl, index) => (
+              <div key={productUrl.id || index} className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Link #{index + 1}
+                  </span>
+                  {formData.productUrls.length > 1 && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        const newProductUrls = formData.productUrls.filter((_, i) => i !== index);
+                        // Ensure at least one primary if we're removing the primary
+                        if (productUrl.isPrimary && newProductUrls.length > 0) {
+                          newProductUrls[0].isPrimary = true;
+                        }
+                        setFormData({ ...formData, productUrls: newProductUrls });
+                      }}
+                      disabled={loading}
+                    >
+                      Kaldır
+                    </Button>
+                  )}
+                </div>
+                
+                <div>
+                  <Label className="text-sm">E-ticaret Markası</Label>
+                  <div className="relative">
+                    <Select
+                      options={[
+                        { value: "", label: "Marka seçin" },
+                        ...brandOptions,
+                      ]}
+                      placeholder="Marka seçin"
+                      onChange={(value) => {
+                        const newProductUrls = [...formData.productUrls];
+                        newProductUrls[index].ecommerceBrandId = value;
+                        setFormData({ ...formData, productUrls: newProductUrls });
+                      }}
+                      className="dark:bg-dark-900"
+                      value={productUrl.ecommerceBrandId}
+                    />
+                    <span className="absolute text-gray-500 -translate-y-1/2 pointer-events-none right-3 top-1/2 dark:text-gray-400">
+                      <ChevronDownIcon />
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="text-sm">URL</Label>
+                  <Input
+                    type="url"
+                    placeholder="https://example.com/affiliate-link"
+                    value={productUrl.url}
+                    onChange={(e) => {
+                      const newProductUrls = [...formData.productUrls];
+                      newProductUrls[index].url = e.target.value;
+                      setFormData({ ...formData, productUrls: newProductUrls });
+                    }}
+                    disabled={loading}
+                    required
+                  />
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    id={`isPrimary-${index}`}
+                    checked={productUrl.isPrimary}
+                    onChange={(e) => {
+                      const newProductUrls = [...formData.productUrls];
+                      // If setting this as primary, unset others
+                      if (e.target.checked) {
+                        newProductUrls.forEach((pu, i) => {
+                          pu.isPrimary = i === index;
+                        });
+                      } else {
+                        newProductUrls[index].isPrimary = false;
+                        // Set first one as primary if none is primary
+                        if (!newProductUrls.some(pu => pu.isPrimary) && newProductUrls.length > 0) {
+                          newProductUrls[0].isPrimary = true;
+                        }
+                      }
+                      setFormData({ ...formData, productUrls: newProductUrls });
+                    }}
+                    disabled={loading}
+                    className="w-4 h-4 text-brand-500 border-gray-300 rounded focus:ring-brand-500 dark:border-gray-600"
+                  />
+                  <Label htmlFor={`isPrimary-${index}`} className="cursor-pointer text-sm">
+                    Varsayılan link
+                  </Label>
+                </div>
+              </div>
+            ))}
+            
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setFormData({
+                  ...formData,
+                  productUrls: [
+                    ...formData.productUrls,
+                    { ecommerceBrandId: "", url: "", isPrimary: false, order: formData.productUrls.length },
+                  ],
+                });
+              }}
+              disabled={loading}
+            >
+              + Yeni Link Ekle
+            </Button>
           </div>
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            Ürün için birden fazla e-ticaret sitesinde satış linki ekleyebilirsiniz
+          </p>
         </div>
 
         <div>
@@ -376,8 +466,8 @@ export default function LinkForm({ linkId, initialData }: LinkFormProps) {
           </p>
         </div>
 
-        {/* Ürün Arama Bölümü */}
-        {formData.ecommerceBrandId && (
+        {/* Ürün Arama Bölümü - Kaldırıldı, artık çoklu link desteği var */}
+        {false && formData.productUrls.length > 0 && (
           <div>
             <Label>Ürün Ara</Label>
             <div className="flex gap-2">
