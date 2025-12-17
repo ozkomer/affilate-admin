@@ -33,27 +33,10 @@ const navItems: NavItem[] = [
     subItems: [{ name: "Ecommerce", path: "/", pro: false }],
   },
   {
-    icon: <PaperPlaneIcon />,
-    name: "Ürünlerim",
-    subItems: [
-      { name: "Tüm Linkler", path: "/links", pro: false },
-      { name: "Yeni Link", path: "/links/new", pro: false },
-    ],
-  },
-  {
     icon: <ListIcon />,
     name: "Kategoriler",
     subItems: [
       { name: "Tüm Kategoriler", path: "/categories", pro: false },
-      { name: "Yeni Kategori", path: "/categories/new", pro: false },
-    ],
-  },
-  {
-    icon: <BoxCubeIcon />,
-    name: "E-ticaret Markaları",
-    subItems: [
-      { name: "Tüm Markalar", path: "/brands", pro: false },
-      { name: "Yeni Marka", path: "/brands/new", pro: false },
     ],
   },
   {
@@ -61,7 +44,20 @@ const navItems: NavItem[] = [
     name: "Listeler",
     subItems: [
       { name: "Tüm Listeler", path: "/lists", pro: false },
-      { name: "Yeni Liste", path: "/lists/new", pro: false },
+    ],
+  },
+  {
+    icon: <PaperPlaneIcon />,
+    name: "Ürünlerim",
+    subItems: [
+      { name: "Tüm Ürünler", path: "/links", pro: false },
+    ],
+  },
+  {
+    icon: <BoxCubeIcon />,
+    name: "E-ticaret Markaları",
+    subItems: [
+      { name: "Tüm Markalar", path: "/brands", pro: false },
     ],
   },
 ];

@@ -1,5 +1,5 @@
 "use client";
-import React from "react";
+import React, { useState, useEffect } from "react";
 // import Chart from "react-apexcharts";
 import { ApexOptions } from "apexcharts";
 import ChartTab from "../common/ChartTab";
@@ -11,13 +11,37 @@ const ReactApexChart = dynamic(() => import("react-apexcharts"), {
 });
 
 export default function StatisticsChart() {
+  const [period, setPeriod] = useState<"monthly" | "quarterly" | "annually">("monthly");
+  const [labels, setLabels] = useState<string[]>([]);
+  const [clickData, setClickData] = useState<number[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const response = await fetch(`/api/statistics/clicks?period=${period}`);
+        if (response.ok) {
+          const data = await response.json();
+          setLabels(data.labels || []);
+          setClickData(data.data || []);
+        }
+      } catch (error) {
+        console.error("Error fetching click statistics:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [period]);
   const options: ApexOptions = {
     legend: {
       show: false, // Hide legend
       position: "top",
       horizontalAlign: "left",
     },
-    colors: ["#465FFF", "#9CB9FF"], // Define line colors
+    colors: ["#465FFF"], // Define line color
     chart: {
       fontFamily: "Outfit, sans-serif",
       height: 310,
@@ -27,8 +51,8 @@ export default function StatisticsChart() {
       },
     },
     stroke: {
-      curve: "straight", // Define the line style (straight, smooth, or step)
-      width: [2, 2], // Line width for each dataset
+      curve: "smooth", // Define the line style (straight, smooth, or step)
+      width: 2, // Line width
     },
 
     fill: {
@@ -63,26 +87,13 @@ export default function StatisticsChart() {
     },
     tooltip: {
       enabled: true, // Enable tooltip
-      x: {
-        format: "dd MMM yyyy", // Format for x-axis tooltip
+      y: {
+        formatter: (value: number) => `${value} tıklama`,
       },
     },
     xaxis: {
       type: "category", // Category-based x-axis
-      categories: [
-        "Jan",
-        "Feb",
-        "Mar",
-        "Apr",
-        "May",
-        "Jun",
-        "Jul",
-        "Aug",
-        "Sep",
-        "Oct",
-        "Nov",
-        "Dec",
-      ],
+      categories: labels.length > 0 ? labels : [],
       axisBorder: {
         show: false, // Hide x-axis border
       },
@@ -111,38 +122,50 @@ export default function StatisticsChart() {
 
   const series = [
     {
-      name: "Sales",
-      data: [180, 190, 170, 160, 175, 165, 170, 205, 230, 210, 240, 235],
-    },
-    {
-      name: "Revenue",
-      data: [40, 30, 50, 40, 55, 40, 70, 100, 110, 120, 150, 140],
+      name: "Tıklamalar",
+      data: clickData.length > 0 ? clickData : [],
     },
   ];
+
+  const handlePeriodChange = (newPeriod: "optionOne" | "optionTwo" | "optionThree") => {
+    if (newPeriod === "optionOne") {
+      setPeriod("monthly");
+    } else if (newPeriod === "optionTwo") {
+      setPeriod("quarterly");
+    } else {
+      setPeriod("annually");
+    }
+  };
   return (
     <div className="rounded-2xl border border-gray-200 bg-white px-5 pb-5 pt-5 dark:border-gray-800 dark:bg-white/[0.03] sm:px-6 sm:pt-6">
       <div className="flex flex-col gap-5 mb-6 sm:flex-row sm:justify-between">
         <div className="w-full">
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
-            Statistics
+            Tıklama Trendi
           </h3>
           <p className="mt-1 text-gray-500 text-theme-sm dark:text-gray-400">
-            Target you’ve set for each month
+            Zaman içindeki tıklama trendi
           </p>
         </div>
         <div className="flex items-start w-full gap-3 sm:justify-end">
-          <ChartTab />
+          <ChartTab onPeriodChange={handlePeriodChange} />
         </div>
       </div>
 
       <div className="max-w-full overflow-x-auto custom-scrollbar">
         <div className="min-w-[1000px] xl:min-w-full">
-          <ReactApexChart
-            options={options}
-            series={series}
-            type="area"
-            height={310}
-          />
+          {loading ? (
+            <div className="flex items-center justify-center h-[310px]">
+              <div className="text-gray-500 dark:text-gray-400">Yükleniyor...</div>
+            </div>
+          ) : (
+            <ReactApexChart
+              options={options}
+              series={series}
+              type="area"
+              height={310}
+            />
+          )}
         </div>
       </div>
     </div>

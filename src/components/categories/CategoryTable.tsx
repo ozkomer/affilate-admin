@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import {
   Table,
   TableBody,
@@ -13,6 +13,8 @@ import { PencilIcon, TrashBinIcon } from "@/icons";
 import Link from "next/link";
 import Button from "../ui/button/Button";
 import Image from "next/image";
+import Label from "../form/Label";
+import Pagination from "../tables/Pagination";
 
 interface Category {
   id: string;
@@ -26,9 +28,17 @@ interface Category {
   };
 }
 
-export default function CategoryTable() {
+interface CategoryTableProps {
+  showFilters?: boolean;
+  onToggleFilters?: () => void;
+}
+
+export default function CategoryTable({ showFilters = false, onToggleFilters }: CategoryTableProps) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   useEffect(() => {
     fetchCategories();
@@ -47,6 +57,32 @@ export default function CategoryTable() {
       setLoading(false);
     }
   };
+
+  const filteredCategories = useMemo(() => {
+    return categories.filter((category) => {
+      // Arama filtresi
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const matchesSearch =
+          category.name.toLowerCase().includes(query) ||
+          (category.description && category.description.toLowerCase().includes(query));
+        if (!matchesSearch) return false;
+      }
+
+      return true;
+    });
+  }, [categories, searchQuery]);
+
+  // Pagination hesaplamaları
+  const totalPages = Math.ceil(filteredCategories.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedCategories = filteredCategories.slice(startIndex, endIndex);
+
+  // Filtre değiştiğinde ilk sayfaya dön
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
 
   const handleDelete = async (id: string) => {
     if (!confirm("Bu kategoriyi silmek istediğinize emin misiniz?")) {
@@ -92,53 +128,100 @@ export default function CategoryTable() {
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
-      <div className="max-w-full overflow-x-auto">
-        <div className="min-w-[800px]">
-          <Table>
-            <TableHeader className="border-b border-gray-100 dark:border-white/[0.05]">
-              <TableRow>
-                <TableCell
-                  isHeader
-                  className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-                >
-                  Avatar
-                </TableCell>
-                <TableCell
-                  isHeader
-                  className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-                >
-                  Kategori Adı
-                </TableCell>
-                <TableCell
-                  isHeader
-                  className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-                >
-                  Açıklama
-                </TableCell>
-                <TableCell
-                  isHeader
-                  className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-                >
-                  Renk
-                </TableCell>
-                <TableCell
-                  isHeader
-                  className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-                >
-                  Link Sayısı
-                </TableCell>
-                <TableCell
-                  isHeader
-                  className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-                >
-                  İşlemler
-                </TableCell>
-              </TableRow>
-            </TableHeader>
+    <div className="space-y-4">
+      {/* Filtreler */}
+      {showFilters && (
+        <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-white/[0.05] dark:bg-white/[0.03]">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* Arama */}
+            <div>
+              <Label>Ara</Label>
+              <input
+                type="text"
+                placeholder="Kategori adı, açıklama..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-300 focus:outline-none focus:ring-1 focus:ring-brand-300 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+              />
+            </div>
+          </div>
 
-            <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
-              {categories.map((category) => (
+          {/* Filtre Sonuçları */}
+          {searchQuery && (
+            <div className="mt-4 flex items-center gap-2 flex-wrap">
+              <span className="text-sm text-gray-500 dark:text-gray-400">
+                {filteredCategories.length} sonuç bulundu
+              </span>
+              <button
+                onClick={() => {
+                  setSearchQuery("");
+                }}
+                className="text-sm text-brand-500 hover:text-brand-600 dark:text-brand-400"
+              >
+                Filtreleri Temizle
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Tablo */}
+      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
+        <div className="max-w-full overflow-x-auto">
+          <div className="min-w-[800px]">
+            <Table>
+              <TableHeader className="border-b border-gray-100 dark:border-white/[0.05]">
+                <TableRow>
+                  <TableCell
+                    isHeader
+                    className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
+                  >
+                    Avatar
+                  </TableCell>
+                  <TableCell
+                    isHeader
+                    className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
+                  >
+                    Kategori Adı
+                  </TableCell>
+                  <TableCell
+                    isHeader
+                    className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
+                  >
+                    Açıklama
+                  </TableCell>
+                  <TableCell
+                    isHeader
+                    className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
+                  >
+                    Renk
+                  </TableCell>
+                  <TableCell
+                    isHeader
+                    className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
+                  >
+                    Link Sayısı
+                  </TableCell>
+                  <TableCell
+                    isHeader
+                    className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
+                  >
+                    İşlemler
+                  </TableCell>
+                </TableRow>
+              </TableHeader>
+
+              <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
+                {paginatedCategories.length === 0 && !loading ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="px-5 py-8 text-center">
+                      <p className="text-gray-500 dark:text-gray-400">
+                        Filtre kriterlerinize uygun kategori bulunamadı.
+                      </p>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  paginatedCategories.map((category) => (
                 <TableRow key={category.id}>
                   <TableCell className="px-5 py-4 sm:px-6 text-start">
                     {category.imageUrl ? (
@@ -211,10 +294,26 @@ export default function CategoryTable() {
                     </div>
                   </TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="mt-4 flex items-center justify-between px-4 py-3 border-t border-gray-200 dark:border-white/[0.05]">
+            <div className="text-sm text-gray-500 dark:text-gray-400">
+              Toplam {filteredCategories.length} sonuçtan {startIndex + 1}-{Math.min(endIndex, filteredCategories.length)} arası gösteriliyor
+            </div>
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
+          </div>
+        )}
       </div>
     </div>
   );
