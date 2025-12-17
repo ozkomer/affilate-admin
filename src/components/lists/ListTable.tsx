@@ -313,7 +313,7 @@ export function ListTable({ showFilters = false, onToggleFilters }: ListTablePro
                   const baseUrl = (typeof window !== 'undefined' 
                     ? (process.env.NEXT_PUBLIC_BASE_URL || 'https://eneso.cc')
                     : 'https://eneso.cc');
-                  const shortUrlFull = list.shortUrl ? `${baseUrl}/l/${list.shortUrl}` : '';
+                  const shortUrlFull = list.shortUrl ? `${baseUrl}/${list.shortUrl}` : '';
                   return (
                     <TableRow key={list.id}>
                   <TableCell className="px-5 py-4 sm:px-6 text-start">
@@ -370,7 +370,7 @@ export function ListTable({ showFilters = false, onToggleFilters }: ListTablePro
                           rel="noopener noreferrer"
                           className="text-brand-500 hover:text-brand-600 text-theme-sm dark:text-brand-400"
                         >
-                          /l/{list.shortUrl}
+                          /{list.shortUrl}
                         </a>
                         <button
                           onClick={() => copyToClipboard(shortUrlFull)}

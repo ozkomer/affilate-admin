@@ -198,12 +198,12 @@ export default function RecentOrders() {
                           {click.linkTitle}
                         </p>
                         <a
-                          href={`${baseUrl}/l/${click.shortUrl}`}
+                          href={`${baseUrl}/${click.shortUrl}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-gray-500 text-theme-xs dark:text-gray-400 hover:text-brand-500 dark:hover:text-brand-400"
                         >
-                          {baseUrl}/l/{click.shortUrl}
+                          {baseUrl}/{click.shortUrl}
                         </a>
                       </div>
                     </div>

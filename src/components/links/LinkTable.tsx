@@ -372,7 +372,7 @@ export default function LinkTable({ showFilters = false, onToggleFilters }: Link
                     const baseUrl = (typeof window !== 'undefined' 
                       ? (process.env.NEXT_PUBLIC_BASE_URL || 'https://eneso.cc')
                       : 'https://eneso.cc');
-                    const shortUrlFull = `${baseUrl}/l/${link.shortUrl}`;
+                    const shortUrlFull = `${baseUrl}/${link.shortUrl}`;
                     return (
                       <TableRow key={link.id}>
                         <TableCell className="px-5 py-4 sm:px-6 text-start">
@@ -405,7 +405,7 @@ export default function LinkTable({ showFilters = false, onToggleFilters }: Link
                             rel="noopener noreferrer"
                             className="text-brand-500 hover:text-brand-600 text-theme-sm dark:text-brand-400"
                           >
-                            /l/{link.shortUrl}
+                            /{link.shortUrl}
                           </a>
                           <button
                             onClick={() => copyToClipboard(shortUrlFull)}

@@ -124,7 +124,7 @@ model CuratedList {
   id          String   @id @default(cuid())
   title       String
   slug        String   @unique
-  shortUrl    String?  @unique // Kısa URL slug'ı (eneso.cc/l/{shortUrl})
+  shortUrl    String?  @unique // Kısa URL slug'ı (eneso.cc/{shortUrl})
   description String?
   coverImage  String?  // Kapak resmi URL
   youtubeUrl  String?  // YouTube video URL
