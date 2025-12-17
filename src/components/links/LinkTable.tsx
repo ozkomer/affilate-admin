@@ -470,7 +470,6 @@ export default function LinkTable({ showFilters = false, onToggleFilters }: Link
                                     backgroundColor: pu.ecommerceBrand.color || undefined,
                                     color: 'white',
                                   }}
-                                  title={pu.isPrimary ? "Varsayılan" : ""}
                                 >
                                   {pu.ecommerceBrand.name}
                                   {pu.isPrimary && " *"}

@@ -72,10 +72,21 @@ export async function GET(
   try {
     const { slug } = await params;
 
-    // Find the link by shortUrl
+    // Find the link by shortUrl with productUrls
     const link = await prisma.affiliateLink.findUnique({
       where: {
         shortUrl: slug,
+      },
+      include: {
+        productUrls: {
+          include: {
+            ecommerceBrand: true,
+          },
+          orderBy: [
+            { isPrimary: 'desc' },
+            { order: 'asc' },
+          ],
+        },
       },
     });
 
@@ -85,6 +96,19 @@ export async function GET(
 
     // Check if link is active
     if (!link.isActive) {
+      return NextResponse.redirect(new URL("/404", request.url));
+    }
+
+    // Get redirect URL from productUrls (primary first) or fallback to originalUrl
+    let redirectUrl: string | null = null;
+    if (link.productUrls && link.productUrls.length > 0) {
+      const primaryUrl = link.productUrls.find(pu => pu.isPrimary) || link.productUrls[0];
+      redirectUrl = primaryUrl.url;
+    } else if (link.originalUrl) {
+      redirectUrl = link.originalUrl;
+    }
+
+    if (!redirectUrl) {
       return NextResponse.redirect(new URL("/404", request.url));
     }
 
@@ -129,8 +153,8 @@ export async function GET(
       },
     });
 
-    // Redirect to original URL
-    return NextResponse.redirect(link.originalUrl);
+    // Redirect to product URL
+    return NextResponse.redirect(redirectUrl);
   } catch (error: any) {
     console.error("Error redirecting:", error);
     return NextResponse.redirect(new URL("/404", request.url));
