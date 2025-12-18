@@ -22,10 +22,10 @@ function createPrismaClient() {
   
   const pool = new Pool({
     connectionString: finalConnectionString,
-    max: 3, // Reduced from 10 to avoid pool exhaustion
+    max: 1, // Very conservative pool size for Supabase Session mode
     min: 0, // Allow pool to close idle connections
-    idleTimeoutMillis: 10000, // Reduced from 30000
-    connectionTimeoutMillis: 10000, // Reduced from 30000
+    idleTimeoutMillis: 5000, // Very short idle timeout
+    connectionTimeoutMillis: 5000, // Reduced timeout
     allowExitOnIdle: true, // Allow process to exit when pool is idle
   })
 

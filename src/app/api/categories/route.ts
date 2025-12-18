@@ -16,28 +16,11 @@ export async function GET(request: NextRequest) {
     }
 
     let categories;
-    try {
-      categories = await prisma.category.findMany({
-        include: {
-          _count: {
-            select: {
-              links: true,
-            },
-          },
-        },
-        orderBy: [
-          { order: "asc" as const },
-          { name: "asc" as const },
-        ],
-      });
-    } catch (queryError: any) {
-      // Retry once if it's a pool error
-      if (
-        queryError.message?.includes("MaxClientsInSessionMode") ||
-        queryError.message?.includes("max clients reached")
-      ) {
-        console.warn("Pool error detected, retrying after 1 second...");
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+    const maxRetries = 3;
+    let retryCount = 0;
+    
+    while (retryCount <= maxRetries) {
+      try {
         categories = await prisma.category.findMany({
           include: {
             _count: {
@@ -51,8 +34,21 @@ export async function GET(request: NextRequest) {
             { name: "asc" as const },
           ],
         });
-      } else {
-        throw queryError;
+        break; // Success, exit retry loop
+      } catch (queryError: any) {
+        // Retry if it's a pool error
+        if (
+          (queryError.message?.includes("MaxClientsInSessionMode") ||
+            queryError.message?.includes("max clients reached")) &&
+          retryCount < maxRetries
+        ) {
+          retryCount++;
+          const delay = retryCount * 1000; // Exponential backoff: 1s, 2s, 3s
+          console.warn(`Pool error detected (attempt ${retryCount}/${maxRetries}), retrying after ${delay}ms...`);
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        } else {
+          throw queryError; // Not a pool error or max retries reached
+        }
       }
     }
 
