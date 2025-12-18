@@ -17,6 +17,7 @@ import {
   UserCircleIcon,
   PaperPlaneIcon,
   PlusIcon,
+  CheckCircleIcon,
 } from "../icons/index";
 
 type NavItem = {
@@ -58,6 +59,13 @@ const navItems: NavItem[] = [
     name: "E-ticaret Markaları",
     subItems: [
       { name: "Tüm Markalar", path: "/brands", pro: false },
+    ],
+  },
+  {
+    icon: <CheckCircleIcon />,
+    name: "Link Kontrolü",
+    subItems: [
+      { name: "Hepsiburada Kontrolü", path: "/link-checker", pro: false },
     ],
   },
 ];
