@@ -71,13 +71,17 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    // Group by city
-    const cityMap = new Map<string, number>();
+    // Group by city (with country)
+    const cityMap = new Map<string, { city: string; country: string; count: number }>();
     clicks.forEach((click) => {
-      if (click.city) {
-        const key = click.country ? `${click.city}, ${click.country}` : click.city;
-        const current = cityMap.get(key) || 0;
-        cityMap.set(key, current + 1);
+      if (click.city && click.country) {
+        const key = `${click.city}, ${click.country}`;
+        const existing = cityMap.get(key);
+        if (existing) {
+          existing.count++;
+        } else {
+          cityMap.set(key, { city: click.city, country: click.country, count: 1 });
+        }
       }
     });
 
@@ -88,9 +92,8 @@ export async function GET(request: NextRequest) {
       .slice(0, 10); // Top 10 countries
 
     const cities = Array.from(cityMap.entries())
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 10); // Top 10 cities
+      .map(([key, data]) => ({ name: key, city: data.city, country: data.country, count: data.count }))
+      .sort((a, b) => b.count - a.count);
 
     // Calculate total for percentage calculation
     const totalClicks = clicks.length;

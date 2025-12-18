@@ -22,9 +22,11 @@ function createPrismaClient() {
   
   const pool = new Pool({
     connectionString: finalConnectionString,
-    max: 10,
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 30000,
+    max: 3, // Reduced from 10 to avoid pool exhaustion
+    min: 0, // Allow pool to close idle connections
+    idleTimeoutMillis: 10000, // Reduced from 30000
+    connectionTimeoutMillis: 10000, // Reduced from 30000
+    allowExitOnIdle: true, // Allow process to exit when pool is idle
   })
 
   const adapter = new PrismaPg(pool)

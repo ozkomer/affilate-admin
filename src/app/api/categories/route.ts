@@ -15,19 +15,46 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const categories = await prisma.category.findMany({
-      include: {
-        _count: {
-          select: {
-            links: true,
+    let categories;
+    try {
+      categories = await prisma.category.findMany({
+        include: {
+          _count: {
+            select: {
+              links: true,
+            },
           },
         },
-      },
-      orderBy: [
-        { order: "asc" as const },
-        { name: "asc" as const },
-      ],
-    });
+        orderBy: [
+          { order: "asc" as const },
+          { name: "asc" as const },
+        ],
+      });
+    } catch (queryError: any) {
+      // Retry once if it's a pool error
+      if (
+        queryError.message?.includes("MaxClientsInSessionMode") ||
+        queryError.message?.includes("max clients reached")
+      ) {
+        console.warn("Pool error detected, retrying after 1 second...");
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        categories = await prisma.category.findMany({
+          include: {
+            _count: {
+              select: {
+                links: true,
+              },
+            },
+          },
+          orderBy: [
+            { order: "asc" as const },
+            { name: "asc" as const },
+          ],
+        });
+      } else {
+        throw queryError;
+      }
+    }
 
     return NextResponse.json(categories);
   } catch (error: any) {
