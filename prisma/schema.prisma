@@ -22,6 +22,29 @@ model User {
   links     AffiliateLink[]
 }
 
+// User Profile model - For managing public profile information
+model UserProfile {
+  id                String   @id @default(cuid())
+  name              String   @default("Enes Özen")
+  bio               String?  // Profile description
+  profileImageUrl   String?  // Profile image URL
+  attentionText     String?  // Orange animated attention text
+  
+  // Social Media Links
+  instagramUrl      String?
+  youtubeUrl        String?
+  tiktokUrl         String?
+  
+  // Discount Channels
+  whatsappUrl       String?
+  telegramUrl       String?
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@map("UserProfile")
+}
+
 // Category model for organizing links
 model Category {
   id          String   @id @default(cuid())
