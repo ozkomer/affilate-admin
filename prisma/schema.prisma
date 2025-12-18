@@ -29,11 +29,14 @@ model Category {
   description String?
   color       String?  // Hex color code for UI
   imageUrl    String?  // Category avatar/image URL
+  order       Int      @default(0) // Display order for homepage
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   
   links       AffiliateLink[]
   lists       CuratedList[]
+  
+  @@index([order])
 }
 
 // E-commerce Brand model (N11, Trendyol, Hepsiburada, Amazon, etc.)

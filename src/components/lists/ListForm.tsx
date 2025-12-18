@@ -331,26 +331,26 @@ export default function ListForm({
           <Label>Ürünler (Linkler)</Label>
           
           {/* Arama ve Filtre Bilgisi */}
-          {(selectedBrandId || formData.categoryId) && (
-            <div className="mt-2 mb-3">
-              <Input
-                type="text"
-                placeholder="Ürün ara..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                disabled={loading}
-                className="w-full"
-              />
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                {selectedBrandId && formData.categoryId
-                  ? `${brands.find((b) => b.id === selectedBrandId)?.name} ve seçili kategoriye göre filtreleniyor`
-                  : selectedBrandId
-                  ? `${brands.find((b) => b.id === selectedBrandId)?.name} markasına göre filtreleniyor`
-                  : "Seçili kategoriye göre filtreleniyor"}
-                {filteredLinks.length > 0 && ` • ${filteredLinks.length} ürün bulundu`}
-              </p>
-            </div>
-          )}
+          <div className="mt-2 mb-3">
+            <Input
+              type="text"
+              placeholder="Ürün ara..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              disabled={loading}
+              className="w-full"
+            />
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {selectedBrandId && formData.categoryId
+                ? `${brands.find((b) => b.id === selectedBrandId)?.name} ve seçili kategoriye göre filtreleniyor`
+                : selectedBrandId
+                ? `${brands.find((b) => b.id === selectedBrandId)?.name} markasına göre filtreleniyor`
+                : formData.categoryId
+                ? "Seçili kategoriye göre filtreleniyor"
+                : "Tüm ürünler gösteriliyor"}
+              {filteredLinks.length > 0 && ` • ${filteredLinks.length} ürün bulundu`}
+            </p>
+          </div>
 
           <div className="mt-2 border border-gray-200 dark:border-gray-700 rounded-lg p-4 max-h-96 overflow-y-auto">
             {allLinks.length === 0 ? (

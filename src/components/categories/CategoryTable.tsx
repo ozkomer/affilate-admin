@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Table,
   TableBody,
@@ -9,12 +9,10 @@ import {
   TableRow,
 } from "../ui/table";
 import Badge from "../ui/badge/Badge";
-import { PencilIcon, TrashBinIcon } from "@/icons";
+import { PencilIcon, TrashBinIcon, ArrowUpIcon, ArrowDownIcon } from "@/icons";
 import Link from "next/link";
 import Button from "../ui/button/Button";
 import Image from "next/image";
-import Label from "../form/Label";
-import Pagination from "../tables/Pagination";
 
 interface Category {
   id: string;
@@ -22,6 +20,7 @@ interface Category {
   description: string | null;
   color: string | null;
   imageUrl: string | null;
+  order: number;
   createdAt: string;
   _count?: {
     links: number;
@@ -36,9 +35,8 @@ interface CategoryTableProps {
 export default function CategoryTable({ showFilters = false, onToggleFilters }: CategoryTableProps) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   useEffect(() => {
     fetchCategories();
@@ -58,32 +56,6 @@ export default function CategoryTable({ showFilters = false, onToggleFilters }: 
     }
   };
 
-  const filteredCategories = useMemo(() => {
-    return categories.filter((category) => {
-      // Arama filtresi
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase();
-        const matchesSearch =
-          category.name.toLowerCase().includes(query) ||
-          (category.description && category.description.toLowerCase().includes(query));
-        if (!matchesSearch) return false;
-      }
-
-      return true;
-    });
-  }, [categories, searchQuery]);
-
-  // Pagination hesaplamaları
-  const totalPages = Math.ceil(filteredCategories.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const paginatedCategories = filteredCategories.slice(startIndex, endIndex);
-
-  // Filtre değiştiğinde ilk sayfaya dön
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery]);
-
   const handleDelete = async (id: string) => {
     if (!confirm("Bu kategoriyi silmek istediğinize emin misiniz?")) {
       return;
@@ -96,6 +68,7 @@ export default function CategoryTable({ showFilters = false, onToggleFilters }: 
 
       if (response.ok) {
         fetchCategories();
+        setSelectedIds(new Set());
       } else {
         const error = await response.json();
         alert(error.error || "Kategori silinirken bir hata oluştu");
@@ -103,6 +76,124 @@ export default function CategoryTable({ showFilters = false, onToggleFilters }: 
     } catch (error) {
       console.error("Error deleting category:", error);
       alert("Kategori silinirken bir hata oluştu");
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) {
+      alert("Lütfen silmek için en az bir kategori seçin");
+      return;
+    }
+
+    const count = selectedIds.size;
+    if (!confirm(`${count} kategoriyi silmek istediğinize emin misiniz?`)) {
+      return;
+    }
+
+    setBulkDeleting(true);
+    const errors: string[] = [];
+    let successCount = 0;
+
+    try {
+      const deletePromises = Array.from(selectedIds).map(async (id) => {
+        try {
+          const response = await fetch(`/api/categories/${id}`, {
+            method: "DELETE",
+          });
+
+          if (response.ok) {
+            successCount++;
+          } else {
+            const error = await response.json();
+            const category = categories.find((c) => c.id === id);
+            errors.push(`${category?.name || id}: ${error.error || "Silinemedi"}`);
+          }
+        } catch (error) {
+          const category = categories.find((c) => c.id === id);
+          errors.push(`${category?.name || id}: Silinemedi`);
+        }
+      });
+
+      await Promise.all(deletePromises);
+
+      if (errors.length > 0) {
+        alert(
+          `${successCount} kategori silindi. Hatalar:\n${errors.join("\n")}`
+        );
+      } else {
+        alert(`${successCount} kategori başarıyla silindi`);
+      }
+
+      setSelectedIds(new Set());
+      fetchCategories();
+    } catch (error) {
+      console.error("Error bulk deleting categories:", error);
+      alert("Kategoriler silinirken bir hata oluştu");
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === categories.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(categories.map((c) => c.id)));
+    }
+  };
+
+  const handleMove = async (id: string, direction: "up" | "down") => {
+    // Optimistic update - immediately update the UI
+    const currentIndex = categories.findIndex((cat) => cat.id === id);
+    if (currentIndex === -1) return;
+
+    const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+    if (targetIndex < 0 || targetIndex >= categories.length) return;
+
+    // Create a new array with swapped items
+    const newCategories = [...categories];
+    [newCategories[currentIndex], newCategories[targetIndex]] = [
+      newCategories[targetIndex],
+      newCategories[currentIndex],
+    ];
+    setCategories(newCategories);
+
+    // Update on server
+    try {
+      const response = await fetch(`/api/categories/${id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ direction }),
+      });
+
+      if (!response.ok) {
+        // Revert on error
+        fetchCategories();
+        const error = await response.json();
+        alert(error.error || "Sıralama değiştirilirken bir hata oluştu");
+      } else {
+        // Refresh to ensure consistency
+        fetchCategories();
+      }
+    } catch (error) {
+      // Revert on error
+      fetchCategories();
+      console.error("Error moving category:", error);
+      alert("Sıralama değiştirilirken bir hata oluştu");
     }
   };
 
@@ -129,43 +220,22 @@ export default function CategoryTable({ showFilters = false, onToggleFilters }: 
 
   return (
     <div className="space-y-4">
-      {/* Filtreler */}
-      {showFilters && (
-        <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-white/[0.05] dark:bg-white/[0.03]">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {/* Arama */}
-            <div>
-              <Label>Ara</Label>
-              <input
-                type="text"
-                placeholder="Kategori adı, açıklama..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-300 focus:outline-none focus:ring-1 focus:ring-brand-300 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
-              />
-            </div>
-          </div>
-
-          {/* Filtre Sonuçları */}
-          {searchQuery && (
-            <div className="mt-4 flex items-center gap-2 flex-wrap">
-              <span className="text-sm text-gray-500 dark:text-gray-400">
-                {filteredCategories.length} sonuç bulundu
-              </span>
-              <button
-                onClick={() => {
-                  setSearchQuery("");
-                }}
-                className="text-sm text-brand-500 hover:text-brand-600 dark:text-brand-400"
-              >
-                Filtreleri Temizle
-              </button>
-            </div>
-          )}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+          <span className="text-sm font-medium text-blue-900 dark:text-blue-200">
+            {selectedIds.size} kategori seçildi
+          </span>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleBulkDelete}
+            disabled={bulkDeleting}
+            className="text-red-600 border-red-300 hover:bg-red-50 dark:text-red-400 dark:border-red-700 dark:hover:bg-red-900/20"
+          >
+            {bulkDeleting ? "Siliniyor..." : `Seçilenleri Sil (${selectedIds.size})`}
+          </Button>
         </div>
       )}
-
-      {/* Tablo */}
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
         <div className="max-w-full overflow-x-auto">
           <div className="min-w-[800px]">
@@ -174,55 +244,71 @@ export default function CategoryTable({ showFilters = false, onToggleFilters }: 
                 <TableRow>
                   <TableCell
                     isHeader
+                    className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400 w-12"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={categories.length > 0 && selectedIds.size === categories.length}
+                      onChange={toggleSelectAll}
+                      className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
+                    />
+                  </TableCell>
+                  <TableCell
+                    isHeader
                     className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
                   >
                     Avatar
                   </TableCell>
-                  <TableCell
-                    isHeader
-                    className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-                  >
-                    Kategori Adı
-                  </TableCell>
-                  <TableCell
-                    isHeader
-                    className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-                  >
-                    Açıklama
-                  </TableCell>
-                  <TableCell
-                    isHeader
-                    className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-                  >
-                    Renk
-                  </TableCell>
-                  <TableCell
-                    isHeader
-                    className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-                  >
-                    Link Sayısı
-                  </TableCell>
-                  <TableCell
-                    isHeader
-                    className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-                  >
-                    İşlemler
-                  </TableCell>
-                </TableRow>
-              </TableHeader>
+                <TableCell
+                  isHeader
+                  className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
+                >
+                  Kategori Adı
+                </TableCell>
+                <TableCell
+                  isHeader
+                  className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
+                >
+                  Açıklama
+                </TableCell>
+                <TableCell
+                  isHeader
+                  className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
+                >
+                  Renk
+                </TableCell>
+                <TableCell
+                  isHeader
+                  className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
+                >
+                  Link Sayısı
+                </TableCell>
+                <TableCell
+                  isHeader
+                  className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
+                >
+                  Sıralama
+                </TableCell>
+                <TableCell
+                  isHeader
+                  className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
+                >
+                  İşlemler
+                </TableCell>
+              </TableRow>
+            </TableHeader>
 
-              <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
-                {paginatedCategories.length === 0 && !loading ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="px-5 py-8 text-center">
-                      <p className="text-gray-500 dark:text-gray-400">
-                        Filtre kriterlerinize uygun kategori bulunamadı.
-                      </p>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  paginatedCategories.map((category) => (
+            <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
+              {categories.map((category) => (
                 <TableRow key={category.id}>
+                  <TableCell className="px-5 py-4 sm:px-6 text-start">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(category.id)}
+                      onChange={() => toggleSelect(category.id)}
+                      className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
+                    />
+                  </TableCell>
                   <TableCell className="px-5 py-4 sm:px-6 text-start">
                     {category.imageUrl ? (
                       <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
@@ -232,7 +318,6 @@ export default function CategoryTable({ showFilters = false, onToggleFilters }: 
                           width={48}
                           height={48}
                           className="w-full h-full object-cover"
-                          unoptimized
                         />
                       </div>
                     ) : (
@@ -275,6 +360,26 @@ export default function CategoryTable({ showFilters = false, onToggleFilters }: 
                     {category._count?.links || 0}
                   </TableCell>
                   <TableCell className="px-4 py-3">
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleMove(category.id, "up")}
+                        disabled={categories.findIndex((c) => c.id === category.id) === 0}
+                        className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded disabled:opacity-30 disabled:cursor-not-allowed"
+                        title="Yukarı taşı"
+                      >
+                        <ArrowUpIcon className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                      </button>
+                      <button
+                        onClick={() => handleMove(category.id, "down")}
+                        disabled={categories.findIndex((c) => c.id === category.id) === categories.length - 1}
+                        className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded disabled:opacity-30 disabled:cursor-not-allowed"
+                        title="Aşağı taşı"
+                      >
+                        <ArrowDownIcon className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                      </button>
+                    </div>
+                  </TableCell>
+                  <TableCell className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       <Link href={`/categories/${category.id}/edit`}>
                         <button
@@ -294,27 +399,12 @@ export default function CategoryTable({ showFilters = false, onToggleFilters }: 
                     </div>
                   </TableCell>
                 </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+              ))}
+            </TableBody>
+          </Table>
         </div>
-
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="mt-4 flex items-center justify-between px-4 py-3 border-t border-gray-200 dark:border-white/[0.05]">
-            <div className="text-sm text-gray-500 dark:text-gray-400">
-              Toplam {filteredCategories.length} sonuçtan {startIndex + 1}-{Math.min(endIndex, filteredCategories.length)} arası gösteriliyor
-            </div>
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={setCurrentPage}
-            />
-          </div>
-        )}
       </div>
+    </div>
     </div>
   );
 }

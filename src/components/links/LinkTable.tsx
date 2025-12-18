@@ -84,6 +84,8 @@ export default function LinkTable({ showFilters = false, onToggleFilters }: Link
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   useEffect(() => {
     fetchLinks();
@@ -193,9 +195,85 @@ export default function LinkTable({ showFilters = false, onToggleFilters }: Link
 
       if (response.ok) {
         fetchLinks();
+        setSelectedIds(new Set());
       }
     } catch (error) {
       console.error("Error deleting link:", error);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) {
+      alert("Lütfen silmek için en az bir link seçin");
+      return;
+    }
+
+    const count = selectedIds.size;
+    if (!confirm(`${count} linki silmek istediğinize emin misiniz?`)) {
+      return;
+    }
+
+    setBulkDeleting(true);
+    const errors: string[] = [];
+    let successCount = 0;
+
+    try {
+      const deletePromises = Array.from(selectedIds).map(async (id) => {
+        try {
+          const response = await fetch(`/api/links/${id}`, {
+            method: "DELETE",
+          });
+
+          if (response.ok) {
+            successCount++;
+          } else {
+            const error = await response.json();
+            const link = links.find((l) => l.id === id);
+            errors.push(`${link?.title || id}: ${error.error || "Silinemedi"}`);
+          }
+        } catch (error) {
+          const link = links.find((l) => l.id === id);
+          errors.push(`${link?.title || id}: Silinemedi`);
+        }
+      });
+
+      await Promise.all(deletePromises);
+
+      if (errors.length > 0) {
+        alert(
+          `${successCount} link silindi. Hatalar:\n${errors.join("\n")}`
+        );
+      } else {
+        alert(`${successCount} link başarıyla silindi`);
+      }
+
+      setSelectedIds(new Set());
+      fetchLinks();
+    } catch (error) {
+      console.error("Error bulk deleting links:", error);
+      alert("Linkler silinirken bir hata oluştu");
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredLinks.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredLinks.map((l) => l.id)));
     }
   };
 
@@ -244,6 +322,24 @@ export default function LinkTable({ showFilters = false, onToggleFilters }: Link
 
   return (
     <div className="space-y-4">
+      {/* Toplu Silme Bilgisi */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+          <span className="text-sm font-medium text-blue-900 dark:text-blue-200">
+            {selectedIds.size} link seçildi
+          </span>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleBulkDelete}
+            disabled={bulkDeleting}
+            className="text-red-600 border-red-300 hover:bg-red-50 dark:text-red-400 dark:border-red-700 dark:hover:bg-red-900/20"
+          >
+            {bulkDeleting ? "Siliniyor..." : `Seçilenleri Sil (${selectedIds.size})`}
+          </Button>
+        </div>
+      )}
+
       {/* Filtreler */}
       {showFilters && (
         <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-white/[0.05] dark:bg-white/[0.03]">
@@ -325,6 +421,17 @@ export default function LinkTable({ showFilters = false, onToggleFilters }: Link
                 <TableRow>
                 <TableCell
                   isHeader
+                  className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400 w-12"
+                >
+                  <input
+                    type="checkbox"
+                    checked={filteredLinks.length > 0 && selectedIds.size === filteredLinks.length}
+                    onChange={toggleSelectAll}
+                    className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
+                  />
+                </TableCell>
+                <TableCell
+                  isHeader
                   className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
                 >
                   Başlık
@@ -377,7 +484,7 @@ export default function LinkTable({ showFilters = false, onToggleFilters }: Link
               <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
                 {paginatedLinks.length === 0 && !loading ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="px-5 py-8 text-center">
+                    <TableCell colSpan={9} className="px-5 py-8 text-center">
                       <p className="text-gray-500 dark:text-gray-400">
                         Filtre kriterlerinize uygun link bulunamadı.
                       </p>
@@ -391,6 +498,14 @@ export default function LinkTable({ showFilters = false, onToggleFilters }: Link
                     const shortUrlFull = `${baseUrl}/${link.shortUrl}`;
                     return (
                       <TableRow key={link.id}>
+                        <TableCell className="px-5 py-4 sm:px-6 text-start">
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(link.id)}
+                            onChange={() => toggleSelect(link.id)}
+                            className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
+                          />
+                        </TableCell>
                         <TableCell className="px-5 py-4 sm:px-6 text-start">
                         <div>
                           <span className="block font-medium text-gray-800 text-theme-sm dark:text-white/90">

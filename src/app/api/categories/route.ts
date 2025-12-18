@@ -23,9 +23,10 @@ export async function GET(request: NextRequest) {
           },
         },
       },
-      orderBy: {
-        name: "asc",
-      },
+      orderBy: [
+        { order: "asc" as const },
+        { name: "asc" as const },
+      ],
     });
 
     return NextResponse.json(categories);
@@ -51,7 +52,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, description, color, imageUrl } = body;
+    const { name, description, color, imageUrl, order } = body;
 
     if (!name) {
       return NextResponse.json(
@@ -60,12 +61,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // If order is not provided, set it to the max order + 1
+    let categoryOrder = order;
+    if (categoryOrder === undefined || categoryOrder === null) {
+      const maxOrderCategory = await prisma.category.findFirst({
+        orderBy: { order: "desc" },
+        select: { order: true },
+      });
+      categoryOrder = (maxOrderCategory?.order ?? -1) + 1;
+    }
+
     const category = await prisma.category.create({
       data: {
         name,
         description: description || null,
         color: color || null,
         imageUrl: imageUrl || null,
+        order: categoryOrder,
       },
     });
 
