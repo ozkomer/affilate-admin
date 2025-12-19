@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 
+// Force Node.js runtime for Vercel (better for external fetch requests)
+export const runtime = 'nodejs';
+export const maxDuration = 60; // Vercel Pro plan allows up to 60 seconds
+
 interface LinkCheckResult {
   linkId: string;
   productUrlId: string;
@@ -14,29 +18,65 @@ interface LinkCheckResult {
 }
 
 // Check if a URL redirects to Hepsiburada homepage (invalid link)
-async function checkLink(url: string): Promise<{
+async function checkLink(url: string, retryCount: number = 0): Promise<{
   status: "valid" | "invalid" | "error";
   statusCode?: number;
   finalUrl?: string;
   error?: string;
 }> {
   try {
-    // Use HEAD request first for efficiency
+    // Use GET request with realistic browser headers to avoid bot detection
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 20000); // 20 second timeout for Vercel
 
     try {
+      // Randomize User-Agent slightly to avoid detection
+      const userAgents = [
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0",
+      ];
+      const randomUserAgent = userAgents[Math.floor(Math.random() * userAgents.length)];
+
       const response = await fetch(url, {
-        method: "HEAD",
+        method: "GET",
         redirect: "follow",
         signal: controller.signal,
         headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+          "User-Agent": randomUserAgent,
+          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+          "Accept-Language": "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7",
+          "Accept-Encoding": "gzip, deflate, br",
+          "Connection": "keep-alive",
+          "Upgrade-Insecure-Requests": "1",
+          "Sec-Fetch-Dest": "document",
+          "Sec-Fetch-Mode": "navigate",
+          "Sec-Fetch-Site": "none",
+          "Sec-Fetch-User": "?1",
+          "Cache-Control": "max-age=0",
+          "DNT": "1",
         },
       });
 
       clearTimeout(timeoutId);
       const finalUrl = response.url || url;
+
+      // Handle 403 Forbidden - retry once with delay if first attempt
+      if (response.status === 403 && retryCount < 1) {
+        // Wait a bit and retry once
+        await new Promise((resolve) => setTimeout(resolve, 2000 + Math.random() * 3000));
+        return checkLink(url, retryCount + 1);
+      }
+
+      // If still 403 after retry, mark as error
+      if (response.status === 403) {
+        return {
+          status: "error",
+          statusCode: 403,
+          finalUrl,
+          error: "403 Forbidden - Bot detection (link kontrol edilemedi)",
+        };
+      }
 
       // Check if final URL is Hepsiburada homepage
       const hepsiburadaHomePatterns = [
@@ -181,8 +221,10 @@ export async function GET(request: NextRequest) {
         else if (checkResult.status === "invalid") invalidCount++;
         else errorCount++;
 
-        // Add small delay to avoid overwhelming the server
-        await new Promise((resolve) => setTimeout(resolve, 500));
+        // Add delay to avoid overwhelming the server and bot detection
+        // Longer delay on Vercel to avoid rate limiting
+        const delay = process.env.VERCEL ? 2000 : 1000;
+        await new Promise((resolve) => setTimeout(resolve, delay + Math.random() * 1000));
       }
     }
 
@@ -203,4 +245,7 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+
+
 

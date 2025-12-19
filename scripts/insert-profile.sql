@@ -37,3 +37,6 @@ INSERT INTO "UserProfile" (
   "telegramUrl" = EXCLUDED."telegramUrl",
   "updatedAt" = CURRENT_TIMESTAMP;
 
+
+
+
