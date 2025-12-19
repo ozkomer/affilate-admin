@@ -27,7 +27,8 @@ async function checkLink(url: string, retryCount: number = 0): Promise<{
   try {
     // Use GET request with realistic browser headers to avoid bot detection
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 20000); // 20 second timeout for Vercel
+    // Reduced timeout to 8 seconds to avoid Vercel function timeout
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
 
     try {
       // Randomize User-Agent slightly to avoid detection
@@ -63,8 +64,8 @@ async function checkLink(url: string, retryCount: number = 0): Promise<{
 
       // Handle 403 Forbidden - retry once with delay if first attempt
       if (response.status === 403 && retryCount < 1) {
-        // Wait a bit and retry once
-        await new Promise((resolve) => setTimeout(resolve, 2000 + Math.random() * 3000));
+        // Wait a bit and retry once (reduced delay for timeout)
+        await new Promise((resolve) => setTimeout(resolve, 1000 + Math.random() * 1000));
         return checkLink(url, retryCount + 1);
       }
 
@@ -199,14 +200,40 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Check each link
+    // Check each link with timeout protection
     const results: LinkCheckResult[] = [];
     let validCount = 0;
     let invalidCount = 0;
     let errorCount = 0;
+    
+    // Limit processing time - if we have too many links, process in batches
+    const startTime = Date.now();
+    const maxProcessingTime = 50000; // 50 seconds max (leave 10 seconds buffer)
+    const totalLinks = linksWithHepsiburada.reduce((sum, link) => sum + link.productUrls.length, 0);
+    
+    // Calculate max links to check based on estimated time per link (8s timeout + 0.5s delay = ~8.5s per link)
+    const estimatedTimePerLink = 8500; // milliseconds
+    const maxLinksToCheck = Math.floor(maxProcessingTime / estimatedTimePerLink);
+    
+    let linksChecked = 0;
+    let shouldStop = false;
 
     for (const link of linksWithHepsiburada) {
+      if (shouldStop) break;
+      
       for (const productUrl of link.productUrls) {
+        // Check if we're approaching timeout
+        if (Date.now() - startTime > maxProcessingTime) {
+          shouldStop = true;
+          break;
+        }
+        
+        // Limit number of links if too many
+        if (linksChecked >= maxLinksToCheck) {
+          shouldStop = true;
+          break;
+        }
+
         const checkResult = await checkLink(productUrl.url);
 
         results.push({
@@ -221,10 +248,12 @@ export async function GET(request: NextRequest) {
         else if (checkResult.status === "invalid") invalidCount++;
         else errorCount++;
 
+        linksChecked++;
+
         // Add delay to avoid overwhelming the server and bot detection
-        // Longer delay on Vercel to avoid rate limiting
-        const delay = process.env.VERCEL ? 2000 : 1000;
-        await new Promise((resolve) => setTimeout(resolve, delay + Math.random() * 1000));
+        // Reduced delay to prevent timeout on Vercel
+        const delay = process.env.VERCEL ? 500 : 300;
+        await new Promise((resolve) => setTimeout(resolve, delay + Math.random() * 500));
       }
     }
 
@@ -236,6 +265,11 @@ export async function GET(request: NextRequest) {
         invalid: invalidCount,
         error: errorCount,
       },
+      ...(shouldStop && linksChecked < totalLinks ? {
+        warning: `Sadece ${linksChecked} link kontrol edildi (toplam ${totalLinks} link). Timeout nedeniyle durduruldu.`,
+        checked: linksChecked,
+        total: totalLinks,
+      } : {}),
     });
   } catch (error: any) {
     console.error("Error checking links:", error);

@@ -51,11 +51,13 @@ export default function LinkChecker() {
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<LinkCheckResult[]>([]);
   const [summary, setSummary] = useState<CheckSummary | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
 
   const handleCheck = async () => {
     setLoading(true);
     setResults([]);
     setSummary(null);
+    setWarning(null);
 
     try {
       const response = await fetch("/api/links/check");
@@ -63,6 +65,9 @@ export default function LinkChecker() {
         const data = await response.json();
         setResults(data.results || []);
         setSummary(data.summary || null);
+        if (data.warning) {
+          setWarning(data.warning);
+        }
       } else {
         const error = await response.json();
         alert(error.error || "Link kontrolü başarısız oldu");
@@ -167,6 +172,17 @@ export default function LinkChecker() {
               </div>
             )}
           </div>
+          
+          {warning && (
+            <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+              <div className="flex items-start gap-2">
+                <AlertIcon className="w-5 h-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-yellow-800 dark:text-yellow-300">
+                  {warning}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </ComponentCard>
 
