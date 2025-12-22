@@ -45,42 +45,76 @@ export async function GET(request: NextRequest) {
       return NextResponse.json([]);
     }
 
-    // Fetch recent clicks (last 10) with link information
-    const recentClicks = await prisma.click.findMany({
-      where: {
-        linkId: {
-          in: linkIds,
+    // Fetch recent product clicks (last 20) with link information
+    let productClicks: any[] = [];
+    try {
+      productClicks = await prisma.click.findMany({
+        where: {
+          linkId: {
+            in: linkIds,
+          },
         },
-      },
-      include: {
-        link: {
-          select: {
-            id: true,
-            title: true,
-            shortUrl: true,
-            category: {
-              select: {
-                name: true,
+        include: {
+          link: {
+            select: {
+              id: true,
+              title: true,
+              shortUrl: true,
+              category: {
+                select: {
+                  name: true,
+                },
               },
-            },
-            ecommerceBrand: {
-              select: {
-                name: true,
-                logo: true,
+              ecommerceBrand: {
+                select: {
+                  name: true,
+                  logo: true,
+                },
               },
             },
           },
         },
-      },
-      orderBy: {
-        timestamp: "desc",
-      },
-      take: 10,
-    });
+        orderBy: {
+          timestamp: "desc",
+        },
+        take: 20,
+      });
+    } catch (error: any) {
+      console.error('Error fetching product clicks:', error.message);
+    }
 
-    // Format the response
-    const formattedClicks = recentClicks.map((click) => ({
+    // Fetch recent list clicks (last 20) with list information
+    let listClicks: any[] = [];
+    try {
+      listClicks = await prisma.listClick.findMany({
+        include: {
+          list: {
+            select: {
+              id: true,
+              title: true,
+              slug: true,
+              shortUrl: true,
+              category: {
+                select: {
+                  name: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: {
+          timestamp: "desc",
+        },
+        take: 20,
+      });
+    } catch (error: any) {
+      console.error('Error fetching list clicks:', error.message);
+    }
+
+    // Format product clicks
+    const formattedProductClicks = productClicks.map((click) => ({
       id: click.id,
+      type: 'product' as const,
       linkTitle: click.link.title,
       shortUrl: click.link.shortUrl,
       category: click.link.category?.name || "Kategori Yok",
@@ -91,7 +125,26 @@ export async function GET(request: NextRequest) {
       device: click.device || "Bilinmiyor",
     }));
 
-    return NextResponse.json(formattedClicks);
+    // Format list clicks
+    const formattedListClicks = listClicks.map((click) => ({
+      id: click.id,
+      type: 'list' as const,
+      linkTitle: click.list.title,
+      shortUrl: click.list.shortUrl || click.list.slug,
+      category: click.list.category?.name || "Kategori Yok",
+      brand: "Liste",
+      brandLogo: null,
+      timestamp: click.timestamp,
+      country: click.country || "Bilinmiyor",
+      device: click.device || "Bilinmiyor",
+    }));
+
+    // Combine and sort by timestamp (most recent first)
+    const allClicks = [...formattedProductClicks, ...formattedListClicks]
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      .slice(0, 10); // Take top 10 most recent
+
+    return NextResponse.json(allClicks);
   } catch (error: any) {
     console.error("Error fetching recent clicks:", error);
     return NextResponse.json(

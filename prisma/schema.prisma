@@ -1,122 +1,98 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
-  // URL is configured in prisma.config.ts for migrations
 }
 
-// User model - Supabase auth users are stored separately, this is for additional user data if needed
 model User {
-  id        String   @id @default(cuid())
-  supabaseUserId String @unique // Supabase auth user ID
-  email     String   @unique
-  name      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-  links     AffiliateLink[]
+  id             String          @id @default(cuid())
+  supabaseUserId String          @unique
+  email          String          @unique
+  name           String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  links          AffiliateLink[]
+  customLinks    CustomLink[]
 }
 
-// User Profile model - For managing public profile information
 model UserProfile {
-  id                String   @id @default(cuid())
-  name              String   @default("Enes Özen")
-  bio               String?  // Profile description
-  profileImageUrl   String?  // Profile image URL
-  attentionText     String?  // Orange animated attention text
-  
-  // Social Media Links
-  instagramUrl      String?
-  youtubeUrl        String?
-  tiktokUrl         String?
-  
-  // Discount Channels
-  whatsappUrl       String?
-  telegramUrl       String?
-  
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  
+  id              String   @id @default(cuid())
+  name            String   @default("Enes Özen")
+  bio             String?
+  profileImageUrl String?
+  attentionText   String?
+  instagramUrl    String?
+  youtubeUrl      String?
+  tiktokUrl       String?
+  whatsappUrl     String?
+  telegramUrl     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
   @@map("UserProfile")
 }
 
-// Category model for organizing links
 model Category {
-  id          String   @id @default(cuid())
+  id          String          @id @default(cuid())
   name        String
   description String?
-  color       String?  // Hex color code for UI
-  imageUrl    String?  // Category avatar/image URL
-  order       Int      @default(0) // Display order for homepage
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
+  color       String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  imageUrl    String?
+  order       Int             @default(0)
   links       AffiliateLink[]
   lists       CuratedList[]
-  
+
   @@index([order])
 }
 
-// E-commerce Brand model (N11, Trendyol, Hepsiburada, Amazon, etc.)
 model EcommerceBrand {
-  id          String   @id @default(cuid())
-  name        String   @unique // N11, Trendyol, Hepsiburada, Amazon
-  slug        String   @unique // n11, trendyol, hepsiburada, amazon
-  logo        String?  // Logo URL or path
-  color       String?  // Brand color (hex)
-  website     String?  // Brand website URL
+  id          String          @id @default(cuid())
+  name        String          @unique
+  slug        String          @unique
+  logo        String?
+  color       String?
+  website     String?
   description String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  links       AffiliateLink[] // Deprecated: Use ProductUrl instead
-  productUrls ProductUrl[]    // Multiple URLs for products
-  listUrls    ListUrl[]       // Multiple URLs for lists
-  
+  isActive    Boolean         @default(true)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  links       AffiliateLink[]
+  listUrls    ListUrl[]
+  productUrls ProductUrl[]
+
   @@index([slug])
   @@index([isActive])
 }
 
-// Affiliate Link model
 model AffiliateLink {
-  id          String   @id @default(cuid())
-  title       String
-  description String?
-  originalUrl String?  // Deprecated: Use ProductUrl instead. Kept for backward compatibility
-  shortUrl    String   @unique // Shortened URL slug
-  customSlug  String?  @unique // Optional custom slug
-  imageUrl    String?  // Product image URL
-  youtubeUrl  String?  // YouTube video URL
-  
-  // Relations
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  categoryId  String?
-  category    Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  ecommerceBrandId String? // Deprecated: Use ProductUrl instead. Kept for backward compatibility
-  ecommerceBrand    EcommerceBrand? @relation(fields: [ecommerceBrandId], references: [id], onDelete: SetNull)
-  
-  // Status and tracking
-  isActive    Boolean  @default(true)
-  clickCount  Int      @default(0)
-  
-  // Metadata
-  tags        String[] // Array of tags
-  notes       String?  // Internal notes
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  clicks      Click[]
-  lists       ListedLink[]
-  productUrls ProductUrl[] // Multiple e-commerce URLs for this product
-  
+  id               String          @id @default(cuid())
+  title            String
+  description      String?
+  originalUrl      String?
+  shortUrl         String          @unique
+  customSlug       String?         @unique
+  userId           String
+  categoryId       String?
+  ecommerceBrandId String?
+  isActive         Boolean         @default(true)
+  clickCount       Int             @default(0)
+  tags             String[]
+  notes            String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  imageUrl         String?
+  youtubeUrl       String?
+  category         Category?       @relation(fields: [categoryId], references: [id])
+  ecommerceBrand   EcommerceBrand? @relation(fields: [ecommerceBrandId], references: [id])
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clicks           Click[]
+  lists            ListedLink[]
+  productUrls      ProductUrl[]
+
   @@index([userId])
   @@index([categoryId])
   @@index([ecommerceBrandId])
@@ -124,150 +100,161 @@ model AffiliateLink {
   @@index([isActive])
 }
 
-// Product URL model - Multiple e-commerce URLs for a single product
 model ProductUrl {
-  id              String   @id @default(cuid())
-  linkId          String
-  link            AffiliateLink @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  id               String         @id @default(cuid())
+  linkId           String
   ecommerceBrandId String
-  ecommerceBrand  EcommerceBrand @relation(fields: [ecommerceBrandId], references: [id], onDelete: Cascade)
-  url             String   // Affiliate URL for this brand
-  isPrimary       Boolean  @default(false) // Primary/default URL
-  order           Int      @default(0) // Display order
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
-  clicks          Click[]
-  
+  url              String
+  isPrimary        Boolean        @default(false)
+  order            Int            @default(0)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  clicks           Click[]
+  ecommerceBrand   EcommerceBrand @relation(fields: [ecommerceBrandId], references: [id], onDelete: Cascade)
+  link             AffiliateLink  @relation(fields: [linkId], references: [id], onDelete: Cascade)
+
+  @@unique([linkId, ecommerceBrandId])
   @@index([linkId])
   @@index([ecommerceBrandId])
   @@index([isPrimary])
-  @@unique([linkId, ecommerceBrandId]) // One URL per brand per product
 }
 
-// Click tracking model
 model Click {
-  id          String   @id @default(cuid())
-  linkId      String
-  link        AffiliateLink @relation(fields: [linkId], references: [id], onDelete: Cascade)
-  productUrlId String? // Which specific URL was clicked
-  productUrl  ProductUrl? @relation(fields: [productUrlId], references: [id], onDelete: SetNull)
-  
-  // Tracking data
-  ipAddress   String?
-  userAgent   String?
-  referrer    String?
-  country     String?
-  city        String?
-  device      String?  // mobile, desktop, tablet
-  browser     String?
-  
-  // Conversion tracking
-  converted   Boolean  @default(false)
-  
-  timestamp   DateTime @default(now())
-  
+  id           String        @id @default(cuid())
+  linkId       String
+  ipAddress    String?
+  userAgent    String?
+  referrer     String?
+  country      String?
+  city         String?
+  device       String?
+  browser      String?
+  converted    Boolean       @default(false)
+  timestamp    DateTime      @default(now())
+  productUrlId String?
+  link         AffiliateLink @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  productUrl   ProductUrl?   @relation(fields: [productUrlId], references: [id])
+
   @@index([linkId])
   @@index([productUrlId])
   @@index([timestamp])
 }
 
-// Curated List model - Kategorilere göre organize edilmiş ürün listeleri
 model CuratedList {
-  id          String   @id @default(cuid())
-  title       String
-  slug        String   @unique
-  shortUrl    String?  @unique // Kısa URL slug'ı (eneso.cc/{shortUrl})
-  description String?
-  coverImage  String?  // Kapak resmi URL
-  youtubeUrl  String?  // YouTube video URL
-  isFeatured  Boolean  @default(false) // Anasayfada gösterilsin mi?
-  showDirectLinks Boolean @default(false) // true: Liste linklerini göster, false: Ürün linklerini göster
-  clickCount  Int      @default(0) // Toplam tıklanma sayısı
-  
-  // Relations
-  categoryId  String?
-  category    Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  
-  // Many-to-many with AffiliateLink
-  links       ListedLink[]
-  // Direct URLs for the list (similar to ProductUrl for products)
-  listUrls    ListUrl[]
-  listClicks  ListClick[] // Click tracking for list URLs
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
+  id              String       @id @default(cuid())
+  title           String
+  slug            String       @unique
+  description     String?
+  coverImage      String?
+  youtubeUrl      String?
+  isFeatured      Boolean      @default(false)
+  categoryId      String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  shortUrl        String?      @unique
+  showDirectLinks Boolean      @default(false)
+  clickCount      Int          @default(0)
+  category        Category?    @relation(fields: [categoryId], references: [id])
+  listClicks      ListClick[]
+  listUrls        ListUrl[]
+  links           ListedLink[]
+
   @@index([categoryId])
   @@index([slug])
   @@index([shortUrl])
   @@index([isFeatured])
 }
 
-// Junction table for many-to-many relationship between CuratedList and AffiliateLink
 model ListedLink {
-  id            String   @id @default(cuid())
-  listId        String
-  linkId        String
-  order         Int      @default(0) // Sıralama için
-  
-  list          CuratedList @relation(fields: [listId], references: [id], onDelete: Cascade)
-  link          AffiliateLink @relation(fields: [linkId], references: [id], onDelete: Cascade)
-  
-  createdAt     DateTime @default(now())
-  
+  id        String        @id @default(cuid())
+  listId    String
+  linkId    String
+  order     Int           @default(0)
+  createdAt DateTime      @default(now())
+  link      AffiliateLink @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  list      CuratedList   @relation(fields: [listId], references: [id], onDelete: Cascade)
+
   @@unique([listId, linkId])
   @@index([listId])
   @@index([linkId])
   @@index([order])
 }
 
-// List URL model - Multiple e-commerce URLs for a single list (similar to ProductUrl)
 model ListUrl {
-  id              String   @id @default(cuid())
-  listId          String
-  list            CuratedList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  id               String         @id @default(cuid())
+  listId           String
   ecommerceBrandId String
-  ecommerceBrand  EcommerceBrand @relation(fields: [ecommerceBrandId], references: [id], onDelete: Cascade)
-  url             String   // Affiliate URL for this brand
-  isPrimary       Boolean  @default(false) // Primary/default URL
-  order           Int      @default(0) // Display order
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
-  clicks          ListClick[] // Click tracking for this list URL
-  
+  url              String
+  isPrimary        Boolean        @default(false)
+  order            Int            @default(0)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  clicks           ListClick[]
+  ecommerceBrand   EcommerceBrand @relation(fields: [ecommerceBrandId], references: [id], onDelete: Cascade)
+  list             CuratedList    @relation(fields: [listId], references: [id], onDelete: Cascade)
+
+  @@unique([listId, ecommerceBrandId])
   @@index([listId])
   @@index([ecommerceBrandId])
   @@index([isPrimary])
-  @@unique([listId, ecommerceBrandId]) // One URL per brand per list
 }
 
-// List Click tracking model - Similar to Click but for list URLs
 model ListClick {
+  id        String      @id @default(cuid())
+  listId    String
+  listUrlId String?
+  ipAddress String?
+  userAgent String?
+  referrer  String?
+  country   String?
+  city      String?
+  device    String?
+  browser   String?
+  converted Boolean     @default(false)
+  timestamp DateTime    @default(now())
+  list      CuratedList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  listUrl   ListUrl?    @relation(fields: [listUrlId], references: [id])
+
+  @@index([listId])
+  @@index([listUrlId])
+  @@index([timestamp])
+}
+
+model CustomLink {
   id          String   @id @default(cuid())
-  listId      String
-  list        CuratedList @relation(fields: [listId], references: [id], onDelete: Cascade)
-  listUrlId   String? // Which specific list URL was clicked
-  listUrl     ListUrl? @relation(fields: [listUrlId], references: [id], onDelete: SetNull)
-  
-  // Tracking data
+  title       String
+  targetUrl   String
+  shortUrl    String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  clickCount  Int      @default(0)
+  userId      String
+  tags        String[]
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clicks      CustomLinkClick[]
+
+  @@index([userId])
+  @@index([shortUrl])
+  @@index([isActive])
+}
+
+model CustomLinkClick {
+  id          String     @id @default(cuid())
+  customLinkId String
   ipAddress   String?
   userAgent   String?
   referrer    String?
   country     String?
   city        String?
-  device      String?  // mobile, desktop, tablet
+  device      String?
   browser     String?
-  
-  // Conversion tracking
-  converted   Boolean  @default(false)
-  
-  timestamp   DateTime @default(now())
-  
-  @@index([listId])
-  @@index([listUrlId])
+  converted   Boolean    @default(false)
+  timestamp   DateTime   @default(now())
+  customLink CustomLink @relation(fields: [customLinkId], references: [id], onDelete: Cascade)
+
+  @@index([customLinkId])
   @@index([timestamp])
 }

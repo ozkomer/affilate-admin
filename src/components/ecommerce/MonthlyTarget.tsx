@@ -11,12 +11,28 @@ export default function MonthlyTarget() {
   useEffect(() => {
     const fetchTotalClicks = async () => {
       try {
-        const response = await fetch("/api/links");
-        if (response.ok) {
-          const links = await response.json();
-          const total = links.reduce((sum: number, link: any) => sum + (link.clickCount || 0), 0);
-          setTotalClicks(total);
+        // Fetch product clicks
+        const linksResponse = await fetch("/api/links");
+        let productClicks = 0;
+        if (linksResponse.ok) {
+          const links = await linksResponse.json();
+          productClicks = links.reduce((sum: number, link: any) => sum + (link.clickCount || 0), 0);
         }
+
+        // Fetch list clicks
+        let listClicks = 0;
+        try {
+          const listClicksResponse = await fetch("/api/statistics/list-clicks");
+          if (listClicksResponse.ok) {
+            const stats = await listClicksResponse.json();
+            listClicks = stats.totalClickCount || stats.totalListClicks || 0;
+          }
+        } catch (error) {
+          console.error("Error fetching list clicks:", error);
+        }
+
+        // Total = product clicks + list clicks
+        setTotalClicks(productClicks + listClicks);
       } catch (error) {
         console.error("Error fetching total clicks:", error);
       } finally {

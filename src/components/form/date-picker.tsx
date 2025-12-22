@@ -13,6 +13,8 @@ type PropsType = {
   defaultDate?: DateOption;
   label?: string;
   placeholder?: string;
+  enableTime?: boolean;
+  dateFormat?: string;
 };
 
 export default function DatePicker({
@@ -22,13 +24,18 @@ export default function DatePicker({
   label,
   defaultDate,
   placeholder,
+  enableTime = false,
+  dateFormat,
 }: PropsType) {
   useEffect(() => {
+    const format = dateFormat || (enableTime ? "Y-m-d H:i" : "Y-m-d");
     const flatPickr = flatpickr(`#${id}`, {
       mode: mode || "single",
       static: true,
       monthSelectorType: "static",
-      dateFormat: "Y-m-d",
+      dateFormat: format,
+      enableTime: enableTime,
+      time_24hr: true,
       defaultDate,
       onChange,
     });
@@ -38,7 +45,7 @@ export default function DatePicker({
         flatPickr.destroy();
       }
     };
-  }, [mode, onChange, id, defaultDate]);
+  }, [mode, onChange, id, defaultDate, enableTime, dateFormat]);
 
   return (
     <div>

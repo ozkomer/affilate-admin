@@ -25,25 +25,53 @@ export async function GET(request: NextRequest) {
       groupBy = "month";
     }
 
-    // Fetch all clicks in the date range
-    const clicks = await prisma.click.findMany({
-      where: {
-        timestamp: {
-          gte: startDate,
+    // Fetch all product clicks in the date range
+    let productClicks: Array<{ timestamp: Date }> = [];
+    try {
+      productClicks = await prisma.click.findMany({
+        where: {
+          timestamp: {
+            gte: startDate,
+          },
         },
-      },
-      select: {
-        timestamp: true,
-      },
-      orderBy: {
-        timestamp: "asc",
-      },
-    });
+        select: {
+          timestamp: true,
+        },
+        orderBy: {
+          timestamp: "asc",
+        },
+      });
+    } catch (error: any) {
+      console.error('Error fetching product clicks:', error.message);
+    }
+
+    // Fetch all list clicks in the date range
+    let listClicks: Array<{ timestamp: Date }> = [];
+    try {
+      listClicks = await prisma.listClick.findMany({
+        where: {
+          timestamp: {
+            gte: startDate,
+          },
+        },
+        select: {
+          timestamp: true,
+        },
+        orderBy: {
+          timestamp: "asc",
+        },
+      });
+    } catch (error: any) {
+      console.error('Error fetching list clicks:', error.message);
+    }
+
+    // Combine all clicks (product + list)
+    const allClicks = [...productClicks, ...listClicks];
 
     // Group clicks by period
     const groupedData: Record<string, number> = {};
 
-    clicks.forEach((click) => {
+    allClicks.forEach((click) => {
       const date = new Date(click.timestamp);
       let key: string;
 

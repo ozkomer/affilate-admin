@@ -53,24 +53,53 @@ export async function GET(request: NextRequest) {
     // Initialize monthly data array (12 months)
     const monthlyData = Array(12).fill(0);
 
-    // Fetch clicks for the current year, grouped by month
-    const clicks = await prisma.click.findMany({
-      where: {
-        linkId: {
-          in: linkIds,
+    // Fetch product clicks for the current year, grouped by month
+    let productClicks: Array<{ timestamp: Date }> = [];
+    try {
+      productClicks = await prisma.click.findMany({
+        where: {
+          linkId: {
+            in: linkIds,
+          },
+          timestamp: {
+            gte: new Date(`${currentYear}-01-01`),
+            lt: new Date(`${currentYear + 1}-01-01`),
+          },
         },
-        timestamp: {
-          gte: new Date(`${currentYear}-01-01`),
-          lt: new Date(`${currentYear + 1}-01-01`),
+        select: {
+          timestamp: true,
         },
-      },
-      select: {
-        timestamp: true,
-      },
+      });
+    } catch (error: any) {
+      console.error('Error fetching product clicks:', error.message);
+    }
+
+    // Fetch list clicks for the current year, grouped by month
+    let listClicks: Array<{ timestamp: Date }> = [];
+    try {
+      listClicks = await prisma.listClick.findMany({
+        where: {
+          timestamp: {
+            gte: new Date(`${currentYear}-01-01`),
+            lt: new Date(`${currentYear + 1}-01-01`),
+          },
+        },
+        select: {
+          timestamp: true,
+        },
+      });
+    } catch (error: any) {
+      console.error('Error fetching list clicks:', error.message);
+    }
+
+    // Group product clicks by month (0-11)
+    productClicks.forEach((click) => {
+      const month = new Date(click.timestamp).getMonth();
+      monthlyData[month]++;
     });
 
-    // Group clicks by month (0-11)
-    clicks.forEach((click) => {
+    // Group list clicks by month (0-11) and add to monthly data
+    listClicks.forEach((click) => {
       const month = new Date(click.timestamp).getMonth();
       monthlyData[month]++;
     });

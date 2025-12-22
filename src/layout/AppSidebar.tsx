@@ -58,6 +58,16 @@ const navItems: NavItem[] = [
     name: "Link Kontrolü",
     path: "/link-checker",
   },
+  {
+    icon: <PieChartIcon />,
+    name: "Raporlama",
+    path: "/reports",
+  },
+  {
+    icon: <PaperPlaneIcon />,
+    name: "Özel Linkler",
+    path: "/custom-links",
+  },
 ];
 
 const othersItems: NavItem[] = [
