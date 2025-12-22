@@ -12,6 +12,14 @@ import Select from "@/components/form/Select";
 import Switch from "@/components/form/switch/Switch";
 import ImageUpload from "@/components/form/ImageUpload";
 
+interface ListUrl {
+  id?: string;
+  ecommerceBrandId: string;
+  url: string;
+  isPrimary: boolean;
+  order: number;
+}
+
 interface ListFormProps {
   listId?: string;
   initialData?: {
@@ -21,7 +29,9 @@ interface ListFormProps {
     youtubeUrl: string | null;
     categoryId: string | null;
     isFeatured: boolean;
+    showDirectLinks: boolean;
     linkIds: string[];
+    listUrls?: ListUrl[];
   };
 }
 
@@ -58,7 +68,6 @@ export default function ListForm({
   const [brands, setBrands] = useState<EcommerceBrand[]>([]);
   const [allLinks, setAllLinks] = useState<AffiliateLink[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedBrandId, setSelectedBrandId] = useState<string>("");
   const [formData, setFormData] = useState({
     title: initialData?.title || "",
     description: initialData?.description || "",
@@ -66,7 +75,9 @@ export default function ListForm({
     youtubeUrl: initialData?.youtubeUrl || "",
     categoryId: initialData?.categoryId || "",
     isFeatured: initialData?.isFeatured || false,
+    showDirectLinks: initialData?.showDirectLinks || false,
     linkIds: initialData?.linkIds || [] as string[],
+    listUrls: initialData?.listUrls || [] as ListUrl[],
   });
 
   useEffect(() => {
@@ -77,6 +88,18 @@ export default function ListForm({
       fetchList();
     }
   }, [listId]);
+
+  // Update categoryId when categories are loaded and list has a category
+  useEffect(() => {
+    if (categories.length > 0 && listId && formData.categoryId) {
+      // Ensure categoryId is valid (exists in categories)
+      const categoryExists = categories.some(cat => cat.id === formData.categoryId);
+      if (!categoryExists && formData.categoryId) {
+        // Category ID exists in formData but not in categories list, keep it
+        // This might happen if category was deleted, but we still want to show it
+      }
+    }
+  }, [categories, listId, formData.categoryId]);
 
   const fetchCategories = async () => {
     try {
@@ -119,6 +142,17 @@ export default function ListForm({
       const response = await fetch(`/api/lists/${listId}`);
       if (response.ok) {
         const data = await response.json();
+        // Handle listUrls
+        let listUrlsData: ListUrl[] = [];
+        if (data.listUrls && data.listUrls.length > 0) {
+          listUrlsData = data.listUrls.map((lu: any) => ({
+            id: lu.id,
+            ecommerceBrandId: lu.ecommerceBrandId,
+            url: lu.url,
+            isPrimary: lu.isPrimary || false,
+            order: lu.order || 0,
+          }));
+        }
         setFormData({
           title: data.title,
           description: data.description || "",
@@ -126,7 +160,9 @@ export default function ListForm({
           youtubeUrl: data.youtubeUrl || "",
           categoryId: data.categoryId || "",
           isFeatured: data.isFeatured || false,
+          showDirectLinks: data.showDirectLinks || false,
           linkIds: data.links?.map((l: any) => l.linkId) || [],
+          listUrls: listUrlsData,
         });
       }
     } catch (error) {
@@ -139,6 +175,11 @@ export default function ListForm({
     setLoading(true);
 
     try {
+      // Validate listUrls
+      const validListUrls = formData.listUrls.filter(
+        (lu) => lu.ecommerceBrandId && lu.url.trim()
+      );
+
       const payload = {
         title: formData.title,
         description: formData.description || null,
@@ -146,7 +187,14 @@ export default function ListForm({
         youtubeUrl: formData.youtubeUrl || null,
         categoryId: formData.categoryId || null,
         isFeatured: formData.isFeatured,
+        showDirectLinks: formData.showDirectLinks,
         linkIds: formData.linkIds,
+        listUrls: validListUrls.map(lu => ({
+          ecommerceBrandId: lu.ecommerceBrandId,
+          url: lu.url,
+          isPrimary: lu.isPrimary,
+          order: lu.order,
+        })),
       };
 
       const url = listId ? `/api/lists/${listId}` : "/api/lists";
@@ -188,10 +236,6 @@ export default function ListForm({
   const filteredLinks = allLinks.filter((link) => {
     // Kategori filtresi
     if (formData.categoryId && link.categoryId !== formData.categoryId) {
-      return false;
-    }
-    // E-ticaret markası filtresi
-    if (selectedBrandId && link.ecommerceBrandId !== selectedBrandId) {
       return false;
     }
     // Arama filtresi
@@ -268,42 +312,23 @@ export default function ListForm({
           />
         </div>
 
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-          <div>
-            <Label>E-ticaret Markası</Label>
-            <Select
-              options={[
-                { value: "", label: "Tüm Markalar" },
-                ...(brands || []).map((brand) => ({
-                  value: brand.id,
-                  label: brand.name,
-                })),
-              ]}
-              value={selectedBrandId}
-              onChange={(value) => setSelectedBrandId(value)}
-              placeholder="Marka Seçin"
-              className={loading ? "opacity-50 cursor-not-allowed" : ""}
-            />
-          </div>
-
-          <div>
-            <Label>Kategori</Label>
-            <Select
-              options={[
-                { value: "", label: "Tüm Kategoriler" },
-                ...(categories || []).map((category) => ({
-                  value: category.id,
-                  label: category.name,
-                })),
-              ]}
-              value={formData.categoryId}
-              onChange={(value) =>
-                setFormData({ ...formData, categoryId: value, linkIds: [] })
-              }
-              placeholder="Kategori Seçin"
-              className={loading ? "opacity-50 cursor-not-allowed" : ""}
-            />
-          </div>
+        <div>
+          <Label>Kategori</Label>
+          <Select
+            options={[
+              { value: "", label: "Kategori Seçin" },
+              ...(categories || []).map((category) => ({
+                value: category.id,
+                label: category.name,
+              })),
+            ]}
+            value={formData.categoryId}
+            onChange={(value) =>
+              setFormData({ ...formData, categoryId: value, linkIds: [] })
+            }
+            placeholder="Kategori Seçin"
+            className={loading ? "opacity-50 cursor-not-allowed" : ""}
+          />
         </div>
 
         <div>
@@ -328,6 +353,177 @@ export default function ListForm({
         </div>
 
         <div>
+          <Label>Liste Linklerini Göster</Label>
+          <div className="flex items-center gap-3">
+            <Switch
+              key={formData.showDirectLinks ? 'direct-links' : 'product-links'}
+              label=""
+              defaultChecked={formData.showDirectLinks}
+              onChange={(checked) =>
+                setFormData({ ...formData, showDirectLinks: checked })
+              }
+              disabled={loading}
+            />
+            <span className="text-sm text-gray-600 dark:text-gray-400">
+              {formData.showDirectLinks ? "Liste Linkleri" : "Ürün Linkleri"}
+            </span>
+          </div>
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            {formData.showDirectLinks 
+              ? "Liste detay sayfasında direkt liste linkleri gösterilecek (Amazon, Hepsiburada vb.)"
+              : "Liste detay sayfasında ürün linkleri gösterilecek"}
+          </p>
+        </div>
+
+        {/* Liste Linkleri - Sadece showDirectLinks true ise göster */}
+        {formData.showDirectLinks && (
+        <div>
+          <Label>
+            Liste Linkleri (E-ticaret) <span className="text-error-500">*</span>
+          </Label>
+          <div className="space-y-3">
+            {formData.listUrls.map((listUrl, index) => (
+              <div key={listUrl.id || index} className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Link #{index + 1}
+                  </span>
+                  {formData.listUrls.length > 1 && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        const newListUrls = formData.listUrls.filter((_, i) => i !== index);
+                        // Ensure at least one primary if we're removing the primary
+                        if (listUrl.isPrimary && newListUrls.length > 0) {
+                          newListUrls[0].isPrimary = true;
+                        }
+                        setFormData({ ...formData, listUrls: newListUrls });
+                      }}
+                      disabled={loading}
+                    >
+                      Kaldır
+                    </Button>
+                  )}
+                </div>
+                
+                <div>
+                  <Label className="text-sm">E-ticaret Markası</Label>
+                  <div className="relative">
+                    <Select
+                      options={[
+                        { value: "", label: "Marka seçin" },
+                        ...brands.map((brand) => ({
+                          value: brand.id,
+                          label: brand.name,
+                        })),
+                      ]}
+                      value={listUrl.ecommerceBrandId}
+                      onChange={(value) => {
+                        const newListUrls = [...formData.listUrls];
+                        newListUrls[index].ecommerceBrandId = value;
+                        setFormData({ ...formData, listUrls: newListUrls });
+                      }}
+                      placeholder="Marka Seçin"
+                      className={loading ? "opacity-50 cursor-not-allowed" : ""}
+                    />
+                  </div>
+                </div>
+                
+                <div>
+                  <Label className="text-sm">URL</Label>
+                  <Input
+                    type="url"
+                    placeholder="https://..."
+                    value={listUrl.url}
+                    onChange={(e) => {
+                      const newListUrls = [...formData.listUrls];
+                      newListUrls[index].url = e.target.value;
+                      setFormData({ ...formData, listUrls: newListUrls });
+                    }}
+                    disabled={loading}
+                    required
+                  />
+                </div>
+                
+                <div className="flex items-center gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={listUrl.isPrimary}
+                      onChange={(e) => {
+                        const newListUrls = [...formData.listUrls];
+                        // Unset other primaries
+                        if (e.target.checked) {
+                          newListUrls.forEach((lu, i) => {
+                            lu.isPrimary = i === index;
+                          });
+                        } else {
+                          newListUrls[index].isPrimary = false;
+                        }
+                        setFormData({ ...formData, listUrls: newListUrls });
+                      }}
+                      disabled={loading}
+                      className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
+                    />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">
+                      Varsayılan Link
+                    </span>
+                  </label>
+                  
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm">Sıra:</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={listUrl.order}
+                      onChange={(e) => {
+                        const newListUrls = [...formData.listUrls];
+                        newListUrls[index].order = parseInt(e.target.value) || 0;
+                        setFormData({ ...formData, listUrls: newListUrls });
+                      }}
+                      disabled={loading}
+                      className="w-20"
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+            
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setFormData({
+                  ...formData,
+                  listUrls: [
+                    ...formData.listUrls,
+                    {
+                      id: `new-${Date.now()}`,
+                      ecommerceBrandId: "",
+                      url: "",
+                      isPrimary: formData.listUrls.length === 0,
+                      order: formData.listUrls.length,
+                    },
+                  ],
+                });
+              }}
+              disabled={loading}
+            >
+              + Link Ekle
+            </Button>
+          </div>
+          <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+            Liste için e-ticaret linkleri ekleyin (Amazon, Hepsiburada, vb.)
+          </p>
+        </div>
+        )}
+
+        {/* Ürünler (Linkler) - Sadece showDirectLinks false ise göster */}
+        {!formData.showDirectLinks && (
+        <div>
           <Label>Ürünler (Linkler)</Label>
           
           {/* Arama ve Filtre Bilgisi */}
@@ -341,11 +537,7 @@ export default function ListForm({
               className="w-full"
             />
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              {selectedBrandId && formData.categoryId
-                ? `${brands.find((b) => b.id === selectedBrandId)?.name} ve seçili kategoriye göre filtreleniyor`
-                : selectedBrandId
-                ? `${brands.find((b) => b.id === selectedBrandId)?.name} markasına göre filtreleniyor`
-                : formData.categoryId
+              {formData.categoryId
                 ? "Seçili kategoriye göre filtreleniyor"
                 : "Tüm ürünler gösteriliyor"}
               {filteredLinks.length > 0 && ` • ${filteredLinks.length} ürün bulundu`}
@@ -359,8 +551,8 @@ export default function ListForm({
               </p>
             ) : filteredLinks.length === 0 ? (
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                {selectedBrandId || formData.categoryId
-                  ? "Seçilen kriterlere uygun ürün bulunamadı."
+                {formData.categoryId
+                  ? "Seçilen kategoriye uygun ürün bulunamadı."
                   : "Ürün bulunamadı."}
               </p>
             ) : (
@@ -417,6 +609,7 @@ export default function ListForm({
             Seçilen ürünler: {formData.linkIds.length}
           </p>
         </div>
+        )}
 
         <div className="flex items-center gap-3 pt-4">
           <Button type="submit" size="sm" disabled={loading}>

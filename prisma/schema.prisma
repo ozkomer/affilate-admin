@@ -77,6 +77,7 @@ model EcommerceBrand {
   
   links       AffiliateLink[] // Deprecated: Use ProductUrl instead
   productUrls ProductUrl[]    // Multiple URLs for products
+  listUrls    ListUrl[]       // Multiple URLs for lists
   
   @@index([slug])
   @@index([isActive])
@@ -182,6 +183,8 @@ model CuratedList {
   coverImage  String?  // Kapak resmi URL
   youtubeUrl  String?  // YouTube video URL
   isFeatured  Boolean  @default(false) // Anasayfada gösterilsin mi?
+  showDirectLinks Boolean @default(false) // true: Liste linklerini göster, false: Ürün linklerini göster
+  clickCount  Int      @default(0) // Toplam tıklanma sayısı
   
   // Relations
   categoryId  String?
@@ -189,6 +192,9 @@ model CuratedList {
   
   // Many-to-many with AffiliateLink
   links       ListedLink[]
+  // Direct URLs for the list (similar to ProductUrl for products)
+  listUrls    ListUrl[]
+  listClicks  ListClick[] // Click tracking for list URLs
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -215,4 +221,53 @@ model ListedLink {
   @@index([listId])
   @@index([linkId])
   @@index([order])
+}
+
+// List URL model - Multiple e-commerce URLs for a single list (similar to ProductUrl)
+model ListUrl {
+  id              String   @id @default(cuid())
+  listId          String
+  list            CuratedList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  ecommerceBrandId String
+  ecommerceBrand  EcommerceBrand @relation(fields: [ecommerceBrandId], references: [id], onDelete: Cascade)
+  url             String   // Affiliate URL for this brand
+  isPrimary       Boolean  @default(false) // Primary/default URL
+  order           Int      @default(0) // Display order
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  clicks          ListClick[] // Click tracking for this list URL
+  
+  @@index([listId])
+  @@index([ecommerceBrandId])
+  @@index([isPrimary])
+  @@unique([listId, ecommerceBrandId]) // One URL per brand per list
+}
+
+// List Click tracking model - Similar to Click but for list URLs
+model ListClick {
+  id          String   @id @default(cuid())
+  listId      String
+  list        CuratedList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  listUrlId   String? // Which specific list URL was clicked
+  listUrl     ListUrl? @relation(fields: [listUrlId], references: [id], onDelete: SetNull)
+  
+  // Tracking data
+  ipAddress   String?
+  userAgent   String?
+  referrer    String?
+  country     String?
+  city        String?
+  device      String?  // mobile, desktop, tablet
+  browser     String?
+  
+  // Conversion tracking
+  converted   Boolean  @default(false)
+  
+  timestamp   DateTime @default(now())
+  
+  @@index([listId])
+  @@index([listUrlId])
+  @@index([timestamp])
 }

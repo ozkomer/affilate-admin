@@ -36,37 +36,27 @@ const navItems: NavItem[] = [
   {
     icon: <ListIcon />,
     name: "Kategoriler",
-    subItems: [
-      { name: "Tüm Kategoriler", path: "/categories", pro: false },
-    ],
+    path: "/categories",
   },
   {
     icon: <ListIcon />,
     name: "Listeler",
-    subItems: [
-      { name: "Tüm Listeler", path: "/lists", pro: false },
-    ],
+    path: "/lists",
   },
   {
     icon: <PaperPlaneIcon />,
     name: "Ürünlerim",
-    subItems: [
-      { name: "Tüm Ürünler", path: "/links", pro: false },
-    ],
+    path: "/links",
   },
   {
     icon: <BoxCubeIcon />,
     name: "E-ticaret Markaları",
-    subItems: [
-      { name: "Tüm Markalar", path: "/brands", pro: false },
-    ],
+    path: "/brands",
   },
   {
     icon: <CheckCircleIcon />,
     name: "Link Kontrolü",
-    subItems: [
-      { name: "Hepsiburada Kontrolü", path: "/link-checker", pro: false },
-    ],
+    path: "/link-checker",
   },
 ];
 
@@ -82,18 +72,41 @@ const AppSidebar: React.FC = () => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
   const pathname = usePathname();
 
+  // Sort navItems: items with "new" subItems first
+  const sortedNavItems = [...navItems].sort((a, b) => {
+    const aHasNew = a.subItems?.some(item => item.new) || false;
+    const bHasNew = b.subItems?.some(item => item.new) || false;
+    if (aHasNew && !bHasNew) return -1;
+    if (!aHasNew && bHasNew) return 1;
+    return 0;
+  });
+
+  // Sort othersItems: items with "new" subItems first
+  const sortedOthersItems = [...othersItems].sort((a, b) => {
+    const aHasNew = a.subItems?.some(item => item.new) || false;
+    const bHasNew = b.subItems?.some(item => item.new) || false;
+    if (aHasNew && !bHasNew) return -1;
+    if (!aHasNew && bHasNew) return 1;
+    return 0;
+  });
+
   const renderMenuItems = (
-    navItems: NavItem[],
+    items: NavItem[],
     menuType: "main" | "others"
   ) => (
     <ul className="flex flex-col gap-4">
-      {navItems.map((nav, index) => (
+      {items.map((nav, index) => {
+        // Find original index for submenu tracking
+        const originalItems = menuType === "main" ? navItems : othersItems;
+        const originalIndex = originalItems.findIndex(item => item.name === nav.name);
+        const displayIndex = originalIndex >= 0 ? originalIndex : index;
+        return (
         <li key={nav.name}>
           {nav.subItems ? (
             <button
-              onClick={() => handleSubmenuToggle(index, menuType)}
+              onClick={() => handleSubmenuToggle(displayIndex, menuType)}
               className={`menu-item group  ${
-                openSubmenu?.type === menuType && openSubmenu?.index === index
+                openSubmenu?.type === menuType && openSubmenu?.index === displayIndex
                   ? "menu-item-active"
                   : "menu-item-inactive"
               } cursor-pointer ${
@@ -104,7 +117,7 @@ const AppSidebar: React.FC = () => {
             >
               <span
                 className={` ${
-                  openSubmenu?.type === menuType && openSubmenu?.index === index
+                  openSubmenu?.type === menuType && openSubmenu?.index === displayIndex
                     ? "menu-item-icon-active"
                     : "menu-item-icon-inactive"
                 }`}
@@ -118,7 +131,7 @@ const AppSidebar: React.FC = () => {
                 <ChevronDownIcon
                   className={`ml-auto w-5 h-5 transition-transform duration-200  ${
                     openSubmenu?.type === menuType &&
-                    openSubmenu?.index === index
+                    openSubmenu?.index === displayIndex
                       ? "rotate-180 text-brand-500"
                       : ""
                   }`}
@@ -151,13 +164,13 @@ const AppSidebar: React.FC = () => {
           {nav.subItems && (isExpanded || isHovered || isMobileOpen) && (
             <div
               ref={(el) => {
-                subMenuRefs.current[`${menuType}-${index}`] = el;
+                subMenuRefs.current[`${menuType}-${displayIndex}`] = el;
               }}
               className="overflow-hidden transition-all duration-300"
               style={{
                 height:
-                  openSubmenu?.type === menuType && openSubmenu?.index === index
-                    ? `${subMenuHeight[`${menuType}-${index}`]}px`
+                  openSubmenu?.type === menuType && openSubmenu?.index === displayIndex
+                    ? `${subMenuHeight[`${menuType}-${displayIndex}`]}px`
                     : "0px",
               }}
             >
@@ -204,7 +217,8 @@ const AppSidebar: React.FC = () => {
             </div>
           )}
         </li>
-      ))}
+        );
+      })}
     </ul>
   );
 
@@ -322,7 +336,7 @@ const AppSidebar: React.FC = () => {
                   <HorizontaLDots />
                 )}
               </h2>
-              {renderMenuItems(navItems, "main")}
+              {renderMenuItems(sortedNavItems, "main")}
             </div>
             {othersItems.length > 0 && (
               <div>
@@ -339,7 +353,7 @@ const AppSidebar: React.FC = () => {
                     <HorizontaLDots />
                   )}
                 </h2>
-                {renderMenuItems(othersItems, "others")}
+                {renderMenuItems(sortedOthersItems, "others")}
               </div>
             )}
           </div>

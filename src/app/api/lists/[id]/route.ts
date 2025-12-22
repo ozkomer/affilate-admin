@@ -35,6 +35,15 @@ export async function GET(
             order: 'asc',
           },
         },
+        listUrls: {
+          include: {
+            ecommerceBrand: true,
+          },
+          orderBy: [
+            { isPrimary: 'desc' },
+            { order: 'asc' },
+          ],
+        },
       },
     });
 
@@ -72,7 +81,7 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { title, description, coverImage, youtubeUrl, categoryId, isFeatured, linkIds } = body;
+    const { title, description, coverImage, youtubeUrl, categoryId, isFeatured, showDirectLinks, linkIds, listUrls } = body;
 
     // Check if list exists
     const existingList = await prisma.curatedList.findUnique({
@@ -116,6 +125,7 @@ export async function PUT(
     if (youtubeUrl !== undefined) updateData.youtubeUrl = youtubeUrl;
     if (categoryId !== undefined) updateData.categoryId = categoryId;
     if (isFeatured !== undefined) updateData.isFeatured = isFeatured;
+    if (showDirectLinks !== undefined) updateData.showDirectLinks = showDirectLinks;
 
     const list = await prisma.curatedList.update({
       where: { id },
@@ -141,7 +151,46 @@ export async function PUT(
       }
     }
 
-    return NextResponse.json(list);
+    // Update listUrls if provided
+    if (listUrls && Array.isArray(listUrls)) {
+      // Delete existing listUrls
+      await prisma.listUrl.deleteMany({
+        where: { listId: id },
+      });
+
+      // Create new listUrls
+      if (listUrls.length > 0) {
+        await prisma.listUrl.createMany({
+          data: listUrls.map((lu: any) => ({
+            listId: id,
+            ecommerceBrandId: lu.ecommerceBrandId,
+            url: lu.url,
+            isPrimary: lu.isPrimary || false,
+            order: lu.order || 0,
+          })),
+        });
+      }
+    }
+
+    // Fetch the updated list with all relations
+    const updatedList = await prisma.curatedList.findUnique({
+      where: { id },
+      include: {
+        category: true,
+        links: {
+          include: {
+            link: true,
+          },
+        },
+        listUrls: {
+          include: {
+            ecommerceBrand: true,
+          },
+        },
+      },
+    });
+
+    return NextResponse.json(updatedList);
   } catch (error) {
     console.error('Error updating list:', error);
     return NextResponse.json(

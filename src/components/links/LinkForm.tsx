@@ -54,6 +54,7 @@ interface LinkFormProps {
 export default function LinkForm({ linkId, initialData }: LinkFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [dataLoading, setDataLoading] = useState(true); // New state for initial data loading
   const [lists, setLists] = useState<CuratedList[]>([]);
   const [brands, setBrands] = useState<EcommerceBrand[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -84,11 +85,19 @@ export default function LinkForm({ linkId, initialData }: LinkFormProps) {
   });
 
   useEffect(() => {
-    fetchLists();
-    fetchBrands();
-    if (linkId && !initialData) {
-      fetchLink();
-    }
+    const loadData = async () => {
+      setDataLoading(true);
+      try {
+        await fetchLists();
+        await fetchBrands();
+        if (linkId && !initialData) {
+          await fetchLink();
+        }
+      } finally {
+        setDataLoading(false);
+      }
+    };
+    loadData();
   }, [linkId]);
 
   // Marka değiştiğinde arama sonuçlarını temizle - Artık kullanılmıyor
@@ -126,17 +135,6 @@ export default function LinkForm({ linkId, initialData }: LinkFormProps) {
       const response = await fetch(`/api/links/${linkId}`);
       if (response.ok) {
         const data = await response.json();
-        // Get lists that contain this link
-        const listsResponse = await fetch("/api/lists");
-        let linkLists: string[] = [];
-        if (listsResponse.ok) {
-          const allLists = await listsResponse.json();
-          linkLists = allLists
-            .filter((list: any) => 
-              list.links?.some((linkItem: any) => linkItem.linkId === linkId)
-            )
-            .map((list: any) => list.id);
-        }
         
         // Handle productUrls
         let productUrlsData: ProductUrl[] = [];
@@ -174,7 +172,7 @@ export default function LinkForm({ linkId, initialData }: LinkFormProps) {
           isActive: data.isActive,
           imageUrl: data.imageUrl || "",
           youtubeUrl: data.youtubeUrl || "",
-          listIds: linkLists,
+          listIds: data.listIds || [], // Use listIds from API response
           productUrls: productUrlsData,
         });
       }
@@ -261,6 +259,17 @@ export default function LinkForm({ linkId, initialData }: LinkFormProps) {
   }));
 
   // Ürün arama fonksiyonları kaldırıldı - artık çoklu link desteği var
+
+  // Show loading state while data is being fetched
+  if (dataLoading && linkId && !initialData) {
+    return (
+      <ComponentCard title={linkId ? "Link Düzenle" : "Yeni Link Oluştur"}>
+        <div className="flex items-center justify-center p-8">
+          <div className="text-gray-500 dark:text-gray-400">Yükleniyor...</div>
+        </div>
+      </ComponentCard>
+    );
+  }
 
   return (
     <ComponentCard title={linkId ? "Link Düzenle" : "Yeni Link Oluştur"}>
@@ -437,6 +446,7 @@ export default function LinkForm({ linkId, initialData }: LinkFormProps) {
         <div>
           <Label>Listelere Ekle</Label>
           <MultiSelect
+            key={`multiselect-${formData.listIds.join(',')}-${lists.length}`}
             label=""
             options={listOptions}
             defaultSelected={formData.listIds}
@@ -447,6 +457,7 @@ export default function LinkForm({ linkId, initialData }: LinkFormProps) {
           />
           <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
             Bu ürünü eklemek istediğiniz listeleri seçin
+            {lists.length === 0 && " (Henüz liste oluşturulmamış)"}
           </p>
         </div>
 

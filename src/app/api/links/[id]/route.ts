@@ -51,7 +51,19 @@ export async function GET(
       return NextResponse.json({ error: "Link not found" }, { status: 404 });
     }
 
-    return NextResponse.json(link);
+    // Get lists that contain this link
+    const listedLinks = await prisma.listedLink.findMany({
+      where: { linkId: id },
+      select: { listId: true },
+    });
+
+    const listIds = listedLinks.map(ll => ll.listId);
+
+    // Return link with listIds
+    return NextResponse.json({
+      ...link,
+      listIds,
+    });
   } catch (error: any) {
     console.error("Error fetching link:", error);
     return NextResponse.json(

@@ -25,6 +25,7 @@ export default function CategoryForm({
 }: CategoryFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [dataLoading, setDataLoading] = useState(true); // New state for initial data loading
   const [formData, setFormData] = useState({
     name: initialData?.name || "",
     description: initialData?.description || "",
@@ -35,11 +36,14 @@ export default function CategoryForm({
   useEffect(() => {
     if (categoryId && !initialData) {
       fetchCategory();
+    } else {
+      setDataLoading(false);
     }
   }, [categoryId]);
 
   const fetchCategory = async () => {
     try {
+      setDataLoading(true);
       const response = await fetch(`/api/categories/${categoryId}`);
       if (response.ok) {
         const data = await response.json();
@@ -52,6 +56,8 @@ export default function CategoryForm({
       }
     } catch (error) {
       console.error("Error fetching category:", error);
+    } finally {
+      setDataLoading(false);
     }
   };
 
@@ -92,6 +98,17 @@ export default function CategoryForm({
       setLoading(false);
     }
   };
+
+  // Show loading state while data is being fetched
+  if (dataLoading && categoryId && !initialData) {
+    return (
+      <ComponentCard title={categoryId ? "Kategori Düzenle" : "Yeni Kategori Oluştur"}>
+        <div className="flex items-center justify-center p-8">
+          <div className="text-gray-500 dark:text-gray-400">Yükleniyor...</div>
+        </div>
+      </ComponentCard>
+    );
+  }
 
   return (
     <ComponentCard title={categoryId ? "Kategori Düzenle" : "Yeni Kategori Oluştur"}>

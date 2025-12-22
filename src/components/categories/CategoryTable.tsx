@@ -285,13 +285,13 @@ export default function CategoryTable({ showFilters = false, onToggleFilters }: 
                 </TableCell>
                 <TableCell
                   isHeader
-                  className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
+                  className="px-2 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
                 >
                   Sıralama
                 </TableCell>
                 <TableCell
                   isHeader
-                  className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
+                  className="px-3 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400 min-w-[80px]"
                 >
                   İşlemler
                 </TableCell>
@@ -359,42 +359,42 @@ export default function CategoryTable({ showFilters = false, onToggleFilters }: 
                   <TableCell className="px-4 py-3 text-gray-500 text-theme-sm dark:text-gray-400">
                     {category._count?.links || 0}
                   </TableCell>
-                  <TableCell className="px-4 py-3">
-                    <div className="flex items-center gap-1">
+                  <TableCell className="px-2 py-3">
+                    <div className="flex items-center gap-0.5">
                       <button
                         onClick={() => handleMove(category.id, "up")}
                         disabled={categories.findIndex((c) => c.id === category.id) === 0}
-                        className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded disabled:opacity-30 disabled:cursor-not-allowed"
+                        className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded disabled:opacity-30 disabled:cursor-not-allowed"
                         title="Yukarı taşı"
                       >
-                        <ArrowUpIcon className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                        <ArrowUpIcon className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" />
                       </button>
                       <button
                         onClick={() => handleMove(category.id, "down")}
                         disabled={categories.findIndex((c) => c.id === category.id) === categories.length - 1}
-                        className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded disabled:opacity-30 disabled:cursor-not-allowed"
+                        className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded disabled:opacity-30 disabled:cursor-not-allowed"
                         title="Aşağı taşı"
                       >
-                        <ArrowDownIcon className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                        <ArrowDownIcon className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" />
                       </button>
                     </div>
                   </TableCell>
-                  <TableCell className="px-4 py-3">
-                    <div className="flex items-center gap-2">
+                  <TableCell className="px-3 py-3 min-w-[80px]">
+                    <div className="flex items-center gap-1.5">
                       <Link href={`/categories/${category.id}/edit`}>
                         <button
-                          className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
+                          className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded flex-shrink-0"
                           title="Düzenle"
                         >
-                          <PencilIcon className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                          <PencilIcon className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" />
                         </button>
                       </Link>
                       <button
                         onClick={() => handleDelete(category.id)}
-                        className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
+                        className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded flex-shrink-0"
                         title="Sil"
                       >
-                        <TrashBinIcon className="w-4 h-4 text-red-500" />
+                        <TrashBinIcon className="w-3.5 h-3.5 text-red-500" />
                       </button>
                     </div>
                   </TableCell>

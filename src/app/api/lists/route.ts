@@ -49,6 +49,15 @@ export async function GET(request: NextRequest) {
             order: 'asc',
           },
         },
+        listUrls: {
+          include: {
+            ecommerceBrand: true,
+          },
+          orderBy: [
+            { isPrimary: 'desc' },
+            { order: 'asc' },
+          ],
+        },
       },
       orderBy: {
         createdAt: 'desc',
@@ -65,6 +74,8 @@ export async function GET(request: NextRequest) {
       coverImage: list.coverImage,
       youtubeUrl: list.youtubeUrl,
       isFeatured: list.isFeatured,
+      showDirectLinks: list.showDirectLinks || false,
+      clickCount: list.clickCount || 0,
       categoryId: list.categoryId,
       category: list.category ? {
         id: list.category.id,
@@ -72,6 +83,7 @@ export async function GET(request: NextRequest) {
         color: list.category.color,
       } : null,
       linkCount: list.links.length,
+      listUrls: list.listUrls || [],
       createdAt: list.createdAt,
       updatedAt: list.updatedAt,
     }));
@@ -99,7 +111,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { title, description, coverImage, youtubeUrl, categoryId, isFeatured, linkIds } = body;
+    const { title, description, coverImage, youtubeUrl, categoryId, isFeatured, showDirectLinks, linkIds, listUrls } = body;
 
     if (!title) {
       return NextResponse.json(
@@ -154,6 +166,7 @@ export async function POST(request: NextRequest) {
         coverImage,
         youtubeUrl,
         isFeatured: isFeatured || false,
+        showDirectLinks: showDirectLinks || false,
         categoryId: categoryId || null,
       },
     });
@@ -169,7 +182,38 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    return NextResponse.json(list, { status: 201 });
+    // Add listUrls if provided
+    if (listUrls && Array.isArray(listUrls) && listUrls.length > 0) {
+      await prisma.listUrl.createMany({
+        data: listUrls.map((lu: any) => ({
+          listId: list.id,
+          ecommerceBrandId: lu.ecommerceBrandId,
+          url: lu.url,
+          isPrimary: lu.isPrimary || false,
+          order: lu.order || 0,
+        })),
+      });
+    }
+
+    // Fetch the created list with all relations
+    const createdList = await prisma.curatedList.findUnique({
+      where: { id: list.id },
+      include: {
+        category: true,
+        links: {
+          include: {
+            link: true,
+          },
+        },
+        listUrls: {
+          include: {
+            ecommerceBrand: true,
+          },
+        },
+      },
+    });
+
+    return NextResponse.json(createdList, { status: 201 });
   } catch (error) {
     console.error('Error creating list:', error);
     return NextResponse.json(

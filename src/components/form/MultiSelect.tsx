@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
 interface Option {
   value: string;
@@ -24,6 +24,13 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
   const [selectedOptions, setSelectedOptions] =
     useState<string[]>(defaultSelected);
   const [isOpen, setIsOpen] = useState(false);
+
+  // Update selectedOptions when defaultSelected changes
+  useEffect(() => {
+    if (defaultSelected) {
+      setSelectedOptions(defaultSelected);
+    }
+  }, [JSON.stringify(defaultSelected)]);
 
   const toggleDropdown = () => {
     if (disabled) return;

@@ -26,6 +26,8 @@ interface List {
   coverImage: string | null;
   youtubeUrl: string | null;
   isFeatured: boolean;
+  showDirectLinks: boolean;
+  clickCount: number;
   categoryId: string | null;
   category: {
     id: string;
@@ -49,6 +51,7 @@ export function ListTable({ showFilters = false, onToggleFilters }: ListTablePro
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
   const [featuredFilter, setFeaturedFilter] = useState<string>("all");
+  const [linkTypeFilter, setLinkTypeFilter] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -110,9 +113,17 @@ export function ListTable({ showFilters = false, onToggleFilters }: ListTablePro
         return false;
       }
 
+      // Link türü filtresi
+      if (linkTypeFilter === "direct-links" && !list.showDirectLinks) {
+        return false;
+      }
+      if (linkTypeFilter === "product-links" && list.showDirectLinks) {
+        return false;
+      }
+
       return true;
     });
-  }, [lists, searchQuery, selectedCategoryId, featuredFilter]);
+  }, [lists, searchQuery, selectedCategoryId, featuredFilter, linkTypeFilter]);
 
   // Pagination hesaplamaları
   const totalPages = Math.ceil(filteredLists.length / itemsPerPage);
@@ -123,7 +134,7 @@ export function ListTable({ showFilters = false, onToggleFilters }: ListTablePro
   // Filtre değiştiğinde ilk sayfaya dön
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, selectedCategoryId, featuredFilter]);
+  }, [searchQuery, selectedCategoryId, featuredFilter, linkTypeFilter]);
 
   const handleDelete = async (id: string) => {
     if (!confirm("Bu listeyi silmek istediğinize emin misiniz?")) {
@@ -250,6 +261,12 @@ export function ListTable({ showFilters = false, onToggleFilters }: ListTablePro
     { value: "not-featured", label: "Öne Çıkmayan" },
   ];
 
+  const linkTypeOptions = [
+    { value: "all", label: "Tümü" },
+    { value: "direct-links", label: "Liste Linkleri" },
+    { value: "product-links", label: "Ürün Linkleri" },
+  ];
+
   if (lists.length === 0 && !loading) {
     return (
       <div className="rounded-xl border border-gray-200 bg-white p-8 text-center dark:border-white/[0.05] dark:bg-white/[0.03]">
@@ -286,7 +303,7 @@ export function ListTable({ showFilters = false, onToggleFilters }: ListTablePro
       {/* Filtreler */}
       {showFilters && (
         <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-white/[0.05] dark:bg-white/[0.03]">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Arama */}
             <div>
               <Label>Ara</Label>
@@ -320,10 +337,21 @@ export function ListTable({ showFilters = false, onToggleFilters }: ListTablePro
                 placeholder="Tümü"
               />
             </div>
+
+            {/* Link Türü Filtresi */}
+            <div>
+              <Label>Link Türü</Label>
+              <Select
+                options={linkTypeOptions}
+                value={linkTypeFilter}
+                onChange={(value) => setLinkTypeFilter(value)}
+                placeholder="Tümü"
+              />
+            </div>
           </div>
 
           {/* Filtre Sonuçları */}
-          {(searchQuery || selectedCategoryId || featuredFilter !== "all") && (
+          {(searchQuery || selectedCategoryId || featuredFilter !== "all" || linkTypeFilter !== "all") && (
             <div className="mt-4 flex items-center gap-2 flex-wrap">
               <span className="text-sm text-gray-500 dark:text-gray-400">
                 {filteredLists.length} sonuç bulundu
@@ -333,6 +361,7 @@ export function ListTable({ showFilters = false, onToggleFilters }: ListTablePro
                   setSearchQuery("");
                   setSelectedCategoryId("");
                   setFeaturedFilter("all");
+                  setLinkTypeFilter("all");
                 }}
                 className="text-sm text-brand-500 hover:text-brand-600 dark:text-brand-400"
               >
@@ -395,6 +424,18 @@ export function ListTable({ showFilters = false, onToggleFilters }: ListTablePro
                   isHeader
                   className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
                 >
+                  Tıklanma
+                </TableCell>
+                <TableCell
+                  isHeader
+                  className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
+                >
+                  Link Türü
+                </TableCell>
+                <TableCell
+                  isHeader
+                  className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
+                >
                   Öne Çıkan
                 </TableCell>
                 <TableCell
@@ -409,7 +450,7 @@ export function ListTable({ showFilters = false, onToggleFilters }: ListTablePro
             <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
               {paginatedLists.length === 0 && !loading ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="px-5 py-8 text-center">
+                  <TableCell colSpan={10} className="px-5 py-8 text-center">
                     <p className="text-gray-500 dark:text-gray-400">
                       Filtre kriterlerinize uygun liste bulunamadı.
                     </p>
@@ -515,6 +556,20 @@ export function ListTable({ showFilters = false, onToggleFilters }: ListTablePro
                   </TableCell>
                   <TableCell className="px-4 py-3 text-gray-500 text-theme-sm dark:text-gray-400">
                     {list.linkCount}
+                  </TableCell>
+                  <TableCell className="px-4 py-3 text-gray-500 text-theme-sm dark:text-gray-400">
+                    {list.clickCount || 0}
+                  </TableCell>
+                  <TableCell className="px-4 py-3">
+                    {list.showDirectLinks ? (
+                      <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                        Liste Linkleri
+                      </Badge>
+                    ) : (
+                      <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
+                        Ürün Linkleri
+                      </Badge>
+                    )}
                   </TableCell>
                   <TableCell className="px-4 py-3">
                     {list.isFeatured ? (
